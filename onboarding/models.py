@@ -69,7 +69,7 @@ class ModuleCompletion(models.Model):
         verbose_name_plural="Завершение модулей"
 
     def __str__(self):
-        return f"{self.user} — {self.module}"
+        return f"{self.user} - {self.module}"
 
 class Question(models.Model):
     module = models.ForeignKey(

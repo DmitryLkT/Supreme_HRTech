@@ -43,6 +43,7 @@ INSTALLED_APPS = [
     'django.contrib.staticfiles',
 
     "onboarding.apps.OnboardingConfig",
+    "health.apps.HealthConfig",
 ]
 
 MIDDLEWARE = [
