@@ -1,0 +1,15 @@
+.level { display: inline-block; padding: 3px 10px; border-radius: var(--r-pill); font-size: 13px; font-weight: 600; white-space: nowrap; }
+.level-low { background: var(--accent-soft); color: #287A5C; }
+.level-moderate { background: var(--warm-soft); color: #B8742E; }
+.level-notable { background: #FBE6D5; color: #A5521F; }
+.level-strong { background: #F8E1DE; color: var(--alert); }
+
+.health-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(190px, 1fr)); gap: 16px; margin-bottom: 24px; }
+.health-grid .card-value { margin-bottom: 8px; }
+.health-week { display: flex; gap: 12px; align-items: center; margin-bottom: 20px; flex-wrap: wrap; }
+.health-week select { font: inherit; padding: 10px 14px; border: 1px solid var(--line); border-radius: var(--r-sm); background: var(--surface); }
+.health-comment { width: 100%; min-height: 110px; font: inherit; padding: 14px 16px; border: 1px solid var(--line); border-radius: var(--r-sm); resize: vertical; }
+.health-errors { margin: 0 0 20px; padding-left: 20px; }
+.health-cell { text-align: center; }
+.health-comment-cell { max-width: 320px; overflow-wrap: anywhere; }
+.health-note { margin-top: 12px; }

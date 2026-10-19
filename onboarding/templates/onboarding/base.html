@@ -7,6 +7,7 @@
     <meta name="viewport" content="width=device-width, initial-scale=1">
     <title>{% block title %}Altra{% endblock %}</title>
     <link rel="stylesheet" href="{% static 'onboarding/css/app.css' %}">
+    {% block extra_head %}{% endblock %}
 </head>
 <body>
 <div class="app">
@@ -19,7 +20,7 @@
                 <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><path d="M16 21v-2a4 4 0 0 0-4-4H6a4 4 0 0 0-4 4v2M22 21v-2a4 4 0 0 0-3-3.87"/><circle cx="9" cy="7" r="4"/></svg>
                 Прогресс сотрудников
             </a>
-            <span class="nav-item nav-disabled" aria-disabled="true">Самочувствие <span class="step-tag">Скоро</span></span>
+            <a class="nav-item{% if request.resolver_match.url_name == 'hr_health' %} active{% endif %}" href="{% url 'hr_health' %}">Самочувствие</a>
             {% if user.is_superuser %}<a class="nav-item" href="{% url 'admin:index' %}">Django-админка →</a>{% endif %}
         {% else %}
             <div class="nav-label">Мой онбординг</div>
@@ -32,6 +33,7 @@
             <a class="nav-item" href="{% url 'home' %}#progress">
                 <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><path d="M3 17l6-6 4 4 8-8M17 7h4v4"/></svg>Прогресс
             </a>
+            <a class="nav-item{% if request.resolver_match.url_name == 'health_form' %} active{% endif %}" href="{% url 'health_form' %}">Самочувствие</a>
             <span class="nav-item nav-disabled" aria-disabled="true">Первые недели <span class="step-tag">Скоро</span></span>
             <span class="nav-item nav-disabled" aria-disabled="true">Забота <span class="step-tag">Скоро</span></span>
             <span class="nav-item nav-disabled" aria-disabled="true">Контакты <span class="step-tag">Скоро</span></span>

@@ -14,6 +14,7 @@ class Questionnaire(models.Model):
 
     title=models.CharField(max_length=100, verbose_name="Название")
     description=models.TextField(verbose_name="Описание")
+    comment_prompt=models.TextField(blank=True, default="", verbose_name="Открытый вопрос (необязательный)")
     status=models.CharField(max_length=10, choices=Status.choices, default=Status.DRAFT, verbose_name="Статус")
     version=models.PositiveIntegerField(default=1, verbose_name="Версия")
     date_of_creation=models.DateField(default=timezone.localdate, verbose_name="Дата создания")
@@ -30,9 +31,9 @@ class Questionnaire(models.Model):
 
     def publish(self):
         if self.pk is None:
-            raise ValidationError("Сначало сохраниет черновик анкеты.")
+            raise ValidationError("Сначала сохраните черновик анкеты.")
         if self.status != self.Status.DRAFT:
-            raise ValidationError("Можно пуюликолвать только черновики.")
+            raise ValidationError("Можно публиковать только черновики.")
 
         with transaction.atomic():
             another_active = type(self).objects.filter(
@@ -71,13 +72,23 @@ class Questionnaire(models.Model):
 
 # Вопрос в анкете
 class QuestionQuestionnaire(models.Model):
+    class Category(models.TextChoices):
+        MOOD="mood", "Настроение"
+        WORKLOAD="workload", "Нагрузка"
+        ORGANIZATION="organization", "Организация"
+        TEAM="team", "Команда"
+        MOTIVATION="motivation", "Мотивация"
+
     questionnaire=models.ForeignKey(Questionnaire, on_delete=models.CASCADE, verbose_name="Анкета")
+    category=models.CharField(max_length=20, choices=Category.choices, verbose_name="Показатель")
     text=models.TextField(verbose_name="Текст вопроса")
     order=models.PositiveIntegerField(default=0, verbose_name="Порядок")
     is_required=models.BooleanField(default=True, verbose_name="Обязательность")
 
     class Meta:
-        ordering = ["order"]
+        ordering = ["order", "id"]
+        verbose_name = "Вопрос анкеты"
+        verbose_name_plural = "Вопросы анкеты"
 
     def __str__(self):
         return self.text
@@ -116,6 +127,7 @@ class QuestionnaireCompletion(models.Model):
     questionnaire=models.ForeignKey(Questionnaire, on_delete=models.PROTECT, verbose_name="Анкета")
     completed_at=models.DateTimeField(auto_now_add=True, verbose_name="Дата завершения")
     week_start=models.DateField(verbose_name="Начало недели")
+    comment=models.TextField(blank=True, default="", verbose_name="Комментарий")
 
     class Meta:
         constraints=[

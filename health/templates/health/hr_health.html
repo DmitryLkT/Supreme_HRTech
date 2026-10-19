@@ -1,0 +1,60 @@
+{% extends "onboarding/base.html" %}
+{% load static %}
+{% block title %}Самочувствие сотрудников — Altra{% endblock %}
+{% block extra_head %}<link rel="stylesheet" href="{% static 'health/css/health.css' %}">{% endblock %}
+{% block content %}
+<div class="top"><div class="hello">
+    <div class="eyebrow">HR-кабинет</div>
+    <h1>Самочувствие сотрудников</h1>
+    <p>Еженедельная анкета: средние оценки по показателям (от 1 до 5, чем выше, тем сильнее проблема).</p>
+</div></div>
+
+{% if not week %}
+    <div class="card"><p class="muted">Пока никто не заполнил анкету.</p></div>
+{% else %}
+    <form method="get" class="health-week">
+        <label for="health-week-select">Неделя с</label>
+        <select id="health-week-select" name="week" onchange="this.form.submit()">
+            {% for w in weeks %}<option value="{{ w|date:'Y-m-d' }}"{% if w == week %} selected{% endif %}>{{ w|date:"d.m.Y" }}</option>{% endfor %}
+        </select>
+        <noscript><button class="btn btn-ghost" type="submit">Показать</button></noscript>
+    </form>
+
+    <div class="health-grid">
+        <div class="card"><div class="card-label">Заполнили анкету</div><p class="card-value">{{ respondents }} из {{ employees_total }}</p></div>
+        {% for item in overall %}
+        <div class="card">
+            <div class="card-label">{{ item.label }} (среднее)</div>
+            <p class="card-value">{{ item.display }}</p>
+            <span class="level level-{{ item.level }}">{{ item.level_label }}</span>
+        </div>
+        {% endfor %}
+    </div>
+
+    <div class="section-title"><h3>Сотрудники</h3><span class="muted">Сначала с самыми высокими значениями</span></div>
+    <div class="card hr-table-card"><div class="hr-table-wrap">
+    <table class="hr-table">
+        <caption class="sr-only">Показатели самочувствия сотрудников за выбранную неделю</caption>
+        <thead><tr>
+            <th scope="col">Сотрудник</th>
+            {% for item in overall %}<th scope="col" class="health-cell">{{ item.label }}</th>{% endfor %}
+            <th scope="col">Комментарий</th>
+        </tr></thead>
+        <tbody>
+        {% for row in page_obj %}<tr>
+            <td><b>{% firstof row.user.get_full_name row.user.username %}</b><span class="hr-login">{{ row.user.username }}</span></td>
+            {% for item in row.cells %}
+            <td class="health-cell">{% if item %}<span class="level level-{{ item.level }}" title="{{ item.level_label }}">{{ item.display }}</span>{% else %}—{% endif %}</td>
+            {% endfor %}
+            <td class="health-comment-cell">{% if row.comment %}{{ row.comment }}{% else %}—{% endif %}</td>
+        </tr>{% empty %}<tr><td colspan="{{ overall|length|add:2 }}">Нет данных за эту неделю.</td></tr>{% endfor %}
+        </tbody>
+    </table></div></div>
+    {% if page_obj.has_other_pages %}<nav class="hr-pagination" aria-label="Страницы списка">
+        {% if page_obj.has_previous %}<a class="btn btn-ghost" href="?week={{ week|date:'Y-m-d' }}&amp;page={{ page_obj.previous_page_number }}">← Назад</a>{% endif %}
+        <span>Страница {{ page_obj.number }} из {{ page_obj.paginator.num_pages }}</span>
+        {% if page_obj.has_next %}<a class="btn btn-ghost" href="?week={{ week|date:'Y-m-d' }}&amp;page={{ page_obj.next_page_number }}">Далее →</a>{% endif %}
+    </nav>{% endif %}
+    <p class="hr-note muted health-note">Показатель — среднее по вопросам одной категории. 1,0–1,9: низкая выраженность проблем; 2,0–2,9: умеренные сигналы; 3,0–3,9: заметная проблема, нужна проверка; 4,0–5,0: сильный сигнал, нужна приоритетная проверка.</p>
+{% endif %}
+{% endblock %}
