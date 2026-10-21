@@ -1,4 +1,6 @@
 from django.contrib import admin, messages
+from django.core.exceptions import ValidationError
+
 from .models import Questionnaire, QuestionnaireVersion
 from .services.publication import set_publication
 
@@ -32,7 +34,7 @@ class QuestionnaireAdmin(admin.ModelAdmin):
 
         try:
             changed_count = set_publication(questionnaire_ids=questionnaire_ids, is_published=is_published)
-        except ValueError as error:
+        except ValidationError as error:
             self.message_user(request, " ".join(error.messages), level=messages.ERROR)
             return
 
@@ -41,19 +43,19 @@ class QuestionnaireAdmin(admin.ModelAdmin):
             f"Количество изменённых анкет: {changed_count}.",
             level=messages.SUCCESS,)
 
-    @admin.register(QuestionnaireVersion)
-    class QuestionnaireVersionAdmin(admin.ModelAdmin):
-        list_display = ("questionnaire", "version", "created_at")
-        list_filter = ("questionnaire",)
-        search_fields = ("questionnaire__title", "questionnaire__code", "version")
-        list_select_related = ("questionnaire",)
-        ordering = ("questionnaire", "-created_at")
+@admin.register(QuestionnaireVersion)
+class QuestionnaireVersionAdmin(admin.ModelAdmin):
+    list_display = ("questionnaire", "version", "created_at")
+    list_filter = ("questionnaire",)
+    search_fields = ("questionnaire__title", "questionnaire__code", "version")
+    list_select_related = ("questionnaire",)
+    ordering = ("questionnaire", "-created_at")
 
-        readonly_fields = ("questionnaire", "version", "definition", "created_at")
+    readonly_fields = ("questionnaire", "version", "definition", "created_at")
 
-        def has_add_permission(self, request):
-            return False
-        def has_delete_permission(self, request, obj=None):
-            return False
-        def has_change_permission(self, request, obj=None):
-            return False
+    def has_add_permission(self, request):
+        return False
+    def has_delete_permission(self, request, obj=None):
+        return False
+    def has_change_permission(self, request, obj=None):
+        return False
