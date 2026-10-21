@@ -11,7 +11,7 @@ class Command(BaseCommand):
         except ValueError as error:
             raise CommandError(str(error)) from error
 
-        self.stdout.write(f"Создано анкет: {result['questionnaires_created']}")
-
-        
+        self.stdout.write(f"Создано анкет: {result['questionnaires_created']}\n"
+                          f"Обновленно анкет: {result['questionnaires_updated']}\n"
+                          f"Создано версий: {result['versions_created']}")
         
