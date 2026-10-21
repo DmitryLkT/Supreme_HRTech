@@ -2,7 +2,7 @@ QUESTIONNAIRE_DEFINITION = {
     "code":"wellbeing",
     "title":"Самочувствие",
     "description":"Еженедельная анкета о самочувствии сотрудника.",
-    "version":"1.0",
+    "version":"2.0",
     "categories":[
         {
             "code":"mood",

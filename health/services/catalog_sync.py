@@ -2,12 +2,15 @@ from django.db import transaction
 
 from ..definitions import QUESTIONNAIRE_DEFINITIONS
 from ..models import Questionnaire, QuestionnaireVersion
+from .publication import set_publication
 
 @transaction.atomic
 def sync_questionnaires():
     questionnaires_created = 0
     versions_created = 0
     questionnaires_updated = 0
+
+    catalog_was_empty = not Questionnaire.objects.exists()
 
     for definition in QUESTIONNAIRE_DEFINITIONS:
         code = definition["code"]
@@ -49,6 +52,10 @@ def sync_questionnaires():
 
         if not version_created and version_object.definition != definition:
            raise ValueError( "Содержание существующей версии изменилось. Создай новую версию.")
+
+    if catalog_was_empty:
+        starter = Questionnaire.objects.get(code="wellbeing")
+        set_publication(questionnaire_ids=[starter.pk], is_published=True)
 
     return {
         "questionnaires_created": questionnaires_created,
