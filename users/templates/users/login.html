@@ -11,7 +11,7 @@
     <h1>Рады видеть тебя</h1><p class="muted">Войди, чтобы открыть материалы адаптации.</p>
     <form method="post" class="login-form">
         {% csrf_token %}{{ form.as_p }}
-        {% if next %}<input type="hidden" name="next" value="{{ next }}">{% endif %}
+        <input type="hidden" name="next" value="{% url 'home' %}">
         <button type="submit" class="btn btn-primary">Войти →</button>
     </form>
 </main>

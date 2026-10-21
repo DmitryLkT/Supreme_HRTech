@@ -1,83 +1,59 @@
 from django.contrib import admin, messages
-from django.core.exceptions import ValidationError
-
-from .models import (
-    AnswerOption,
-    AnswerUser,
-    Questionnaire,
-    QuestionnaireCompletion,
-    QuestionQuestionnaire,
-)
-
-
-class AnswerOptionInline(admin.TabularInline):
-    model = AnswerOption
-    extra = 5
-    min_num = 5
-    max_num = 5
-    validate_min = True
-    validate_max = True
-
-
-class QuestionInline(admin.TabularInline):
-    model = QuestionQuestionnaire
-    extra = 0
-    fields = ("order", "category", "text", "is_required")
-    show_change_link = True
+from .models import Questionnaire, QuestionnaireVersion
+from .services.publication import set_publication
 
 
 @admin.register(Questionnaire)
 class QuestionnaireAdmin(admin.ModelAdmin):
-    list_display = ("title", "version", "status", "date_of_creation")
-    list_filter = ("status",)
-    readonly_fields = ("status",)  # статус меняется только действиями ниже
-    inlines = [QuestionInline]
-    actions = ["publish_selected", "archive_selected"]
+    list_display = ("title", "code", "is_published")
+    list_filter = ("is_published",)
+    search_fields = ("title", "code")
+    ordering = ("title",)
 
-    @admin.action(description="Опубликовать выбранные черновики")
-    def publish_selected(self, request, queryset):
-        for questionnaire in queryset:
-            try:
-                questionnaire.publish()
-            except ValidationError as error:
-                self.message_user(
-                    request, f"«{questionnaire}»: {' '.join(error.messages)}",
-                    level=messages.ERROR,
-                )
-            else:
-                self.message_user(request, f"«{questionnaire}» опубликована.")
+    readonly_fields = ("code", "title", "description", "is_published")
 
-    @admin.action(description="Архивировать выбранные анкеты")
-    def archive_selected(self, request, queryset):
-        updated = queryset.exclude(status=Questionnaire.Status.ARCHIVED).update(
-            status=Questionnaire.Status.ARCHIVED,
-        )
-        self.message_user(request, f"Архивировано анкет: {updated}.")
-
-
-@admin.register(QuestionQuestionnaire)
-class QuestionQuestionnaireAdmin(admin.ModelAdmin):
-    list_display = ("text", "questionnaire", "category", "order", "is_required")
-    list_filter = ("questionnaire", "category")
-    inlines = [AnswerOptionInline]
-
-
-class AnswerUserInline(admin.TabularInline):
-    model = AnswerUser
-    extra = 0
-    can_delete = False
-    readonly_fields = ("question_questionnaire", "answer_option")
-
-    def has_add_permission(self, request, obj=None):
-        return False
-
-
-@admin.register(QuestionnaireCompletion)
-class QuestionnaireCompletionAdmin(admin.ModelAdmin):
-    list_display = ("user", "questionnaire", "week_start", "completed_at")
-    list_filter = ("week_start", "questionnaire")
-    readonly_fields = ("user", "questionnaire", "week_start", "completed_at", "comment")
-    inlines = [AnswerUserInline]
+    actions = ("publish_selected", "unpublish_selected")
 
     def has_add_permission(self, request):
         return False
+    def has_delete_permission(self, request, obj=None):
+        return False
+
+    @admin.action(description="Опубликовать выбранные анкеты", permissions=["change"])
+    def publish_selected(self, request, queryset):
+        self._set_publication(request, queryset, True)
+
+    @admin.action(description="Снять выбранные анкеты с публикации", permissions=["change"])
+    def unpublish_selected(self, request, queryset):
+        self._set_publication(request, queryset, False)
+
+    def _set_publication(self, request, queryset, is_published):
+        questionnaire_ids = list(queryset.values_list("pk", flat=True))
+
+        try:
+            changed_count = set_publication(questionnaire_ids=questionnaire_ids, is_published=is_published)
+        except ValueError as error:
+            self.message_user(request, " ".join(error.messages), level=messages.ERROR)
+            return
+
+        self.message_user(
+            request,
+            f"Количество изменённых анкет: {changed_count}.",
+            level=messages.SUCCESS,)
+
+    @admin.register(QuestionnaireVersion)
+    class QuestionnaireVersionAdmin(admin.ModelAdmin):
+        list_display = ("questionnaire", "version", "created_at")
+        list_filter = ("questionnaire",)
+        search_fields = ("questionnaire__title", "questionnaire__code", "version")
+        list_select_related = ("questionnaire",)
+        ordering = ("questionnaire", "-created_at")
+
+        readonly_fields = ("questionnaire", "version", "definition", "created_at")
+
+        def has_add_permission(self, request):
+            return False
+        def has_delete_permission(self, request, obj=None):
+            return False
+        def has_change_permission(self, request, obj=None):
+            return False

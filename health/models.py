@@ -1,177 +1,84 @@
-from django.core.exceptions import ValidationError
-from django.core.validators import MinValueValidator, MaxValueValidator
-from django.db import models, transaction
+from django.db import models
 from django.conf import settings
-from django.db.models import Q
-from django.utils import timezone
+
 
 # Анкета
 class Questionnaire(models.Model):
-    class Status(models.TextChoices):
-        DRAFT="draft"
-        ACTIVE="active"
-        ARCHIVED="archived"
-
+    code=models.SlugField(max_length=100, unique=True, verbose_name="Код анкеты")
     title=models.CharField(max_length=100, verbose_name="Название")
     description=models.TextField(verbose_name="Описание")
-    comment_prompt=models.TextField(blank=True, default="", verbose_name="Открытый вопрос (необязательный)")
-    status=models.CharField(max_length=10, choices=Status.choices, default=Status.DRAFT, verbose_name="Статус")
-    version=models.PositiveIntegerField(default=1, verbose_name="Версия")
-    date_of_creation=models.DateField(default=timezone.localdate, verbose_name="Дата создания")
+    is_published = models.BooleanField(default=False, verbose_name="Опубликован")
 
     class Meta:
         verbose_name = "Анкета"
         verbose_name_plural = "Анкеты"
 
-        constraints = [
-            models.UniqueConstraint(fields=["status"],
-                                    condition=models.Q(status="active"),
-                                    name="unique_status"),
-        ]
-
-    def publish(self):
-        if self.pk is None:
-            raise ValidationError("Сначала сохраните черновик анкеты.")
-        if self.status != self.Status.DRAFT:
-            raise ValidationError("Можно публиковать только черновики.")
-
-        with transaction.atomic():
-            another_active = type(self).objects.filter(
-                status=self.Status.ACTIVE
-            ).exclude(pk=self.pk).exists()
-
-            if another_active:
-                raise ValidationError(
-                    "Сначала архивируйте текущую активную анкету."
-                )
-
-            questions = self.questionquestionnaire_set.all()
-
-            if not questions.exists():
-                raise ValidationError(
-                    "Нельзя опубликовать анкету без вопросов."
-                )
-
-            for question in questions:
-                scores = list(
-                    question.answeroption_set.values_list("score", flat=True)
-                )
-
-                if len(scores) != 5 or set(scores) != {1, 2, 3, 4, 5}:
-                    raise ValidationError(
-                        f"У вопроса «{question.text}» "
-                        "должно быть ровно пять вариантов "
-                        "с оценками от 1 до 5."
-                    )
-
-            self.status = self.Status.ACTIVE
-            self.save(update_fields=["status"])
-
     def __str__(self):
         return self.title
 
-# Вопрос в анкете
-class QuestionQuestionnaire(models.Model):
-    class Category(models.TextChoices):
-        MOOD="mood", "Настроение"
-        WORKLOAD="workload", "Нагрузка"
-        ORGANIZATION="organization", "Организация"
-        TEAM="team", "Команда"
-        MOTIVATION="motivation", "Мотивация"
-
-    questionnaire=models.ForeignKey(Questionnaire, on_delete=models.CASCADE, verbose_name="Анкета")
-    category=models.CharField(max_length=20, choices=Category.choices, verbose_name="Показатель")
-    text=models.TextField(verbose_name="Текст вопроса")
-    order=models.PositiveIntegerField(default=0, verbose_name="Порядок")
-    is_required=models.BooleanField(default=True, verbose_name="Обязательность")
+#версия содержания анкеты
+class QuestionnaireVersion(models.Model):
+    questionnaire=models.ForeignKey(Questionnaire, on_delete=models.PROTECT, related_name="versions", verbose_name="Анкета")
+    version=models.CharField(max_length=20, verbose_name="Версия анкеты")
+    definition=models.JSONField(default=dict, verbose_name="Содержание анкеты")
+    created_at=models.DateTimeField(auto_now_add=True, verbose_name="Дата создания")
 
     class Meta:
-        ordering = ["order", "id"]
-        verbose_name = "Вопрос анкеты"
-        verbose_name_plural = "Вопросы анкеты"
-
-    def __str__(self):
-        return self.text
-
-# Варианты ответа
-class AnswerOption(models.Model):
-    question=models.ForeignKey(QuestionQuestionnaire, on_delete=models.CASCADE, verbose_name="Вопрос")
-    text=models.TextField(max_length=200, verbose_name="Текст ответа")
-    order=models.PositiveIntegerField(default=0, verbose_name="Порядок")
-    score=models.PositiveIntegerField(validators=[MinValueValidator(1), MaxValueValidator(5)], verbose_name="Оценка")
-
-    class Meta:
-        ordering = ["score"]
-        verbose_name = "Вариант ответа"
-        verbose_name_plural = "Варианты ответов"
-
+        verbose_name = "Версия анкеты"
+        verbose_name_plural = "Версии анкет"
         constraints = [
-            # Оценка должна быть от 1 до 5
+            models.UniqueConstraint(
+                fields=["questionnaire", "version"],
+                name="unique_questionnaire_version",
+            ),
+        ]
+
+    def __str__(self):
+        return f"{self.questionnaire.title} — {self.version}"
+
+#факт прохождения анкеты
+class Submission(models.Model):
+    employee=models.ForeignKey(settings.AUTH_USER_MODEL, on_delete=models.PROTECT, related_name="wellbeing_submissions", verbose_name="Сотрудник")
+    questionnaire = models.ForeignKey(Questionnaire, on_delete=models.PROTECT, related_name="submissions", verbose_name="Анкета")
+    version_quest=models.ForeignKey(QuestionnaireVersion, on_delete=models.PROTECT, related_name="submissions", verbose_name="Версия анкеты")
+    department=models.CharField(max_length=150, unique=False, verbose_name="Название отдела")
+    week_start=models.DateField(verbose_name="Время заполнения")
+    evaluated_week_start=models.DateField(verbose_name="Веремя оцениваемой недели")
+    submitted_at=models.DateTimeField(auto_now_add=True, verbose_name="Время отправки")
+    expires_at=models.DateField(verbose_name="Время удаления")
+
+    class Meta:
+        verbose_name = "Прохождение анкеты"
+        verbose_name_plural = "Прохождения анкет"
+        constraints = [
+            models.UniqueConstraint(
+                fields=["employee", "questionnaire", "week_start"],
+                name="unique_employee_questionnaire_week",
+            ),
+        ]
+
+    def __str__(self):
+        return f"Прохождение №{self.pk}"
+
+# ответ на вопрос
+class Answer(models.Model):
+    submission=models.ForeignKey(Submission, on_delete=models.CASCADE, related_name="answers", verbose_name="связь с прохождением")
+    question_code=models.CharField(max_length=100, verbose_name="Код вопроса")
+    value=models.PositiveSmallIntegerField(verbose_name="Оценка")
+
+    class Meta:
+        verbose_name = "Ответ"
+        verbose_name_plural = "Ответы"
+        constraints = [
+            models.UniqueConstraint(
+                fields=["submission", "question_code"],
+                name="unique_submission_question",
+            ),
             models.CheckConstraint(
-                condition=Q(score__gte=1) & Q(score__lte=5),
-                name="answer_score_between_1_and_5",
-            ),
-            # В пределах одного вопроса оценки не повторяются
-            models.UniqueConstraint(
-                fields=["question", "score"],
-                name="unique_score_per_question",
+                condition=models.Q(value__gte=1, value__lte=5),
+                name="answer_value_between_1_and_5",
             ),
         ]
 
     def __str__(self):
-        return self.text
-
-# Завершение анкеты
-class QuestionnaireCompletion(models.Model):
-    user=models.ForeignKey(settings.AUTH_USER_MODEL, on_delete=models.PROTECT, verbose_name="Сотрудник")
-    questionnaire=models.ForeignKey(Questionnaire, on_delete=models.PROTECT, verbose_name="Анкета")
-    completed_at=models.DateTimeField(auto_now_add=True, verbose_name="Дата завершения")
-    week_start=models.DateField(verbose_name="Начало недели")
-    comment=models.TextField(blank=True, default="", verbose_name="Комментарий")
-
-    class Meta:
-        constraints=[
-            models.UniqueConstraint(
-                fields=["user", "week_start"],
-                name="unique_questionnaire_week")
-        ]
-
-        verbose_name="Завершение анкеты"
-        verbose_name_plural = "Завершение анкет"
-
-    def __str__(self):
-        return f"{self.user} - {self.questionnaire} - {self.week_start}"
-
-# Варианты ответа сотрудника
-class AnswerUser(models.Model):
-    questionnaire_completion=models.ForeignKey(QuestionnaireCompletion, on_delete=models.CASCADE)
-    question_questionnaire=models.ForeignKey(QuestionQuestionnaire, on_delete=models.PROTECT)
-    answer_option=models.ForeignKey(AnswerOption, on_delete=models.PROTECT)
-
-    class Meta:
-        constraints=[
-            models.UniqueConstraint(
-                fields=["questionnaire_completion", "question_questionnaire"],
-                name="unique_answer_user"
-            )
-        ]
-        verbose_name="Ответ сотрудника"
-        verbose_name_plural="Ответы сотрудника"
-
-    def clean(self):
-        super().clean()
-        errors={}
-
-        if self.questionnaire_completion_id and self.question_questionnaire_id :
-            complete_question_id = self.questionnaire_completion.questionnaire_id
-            question_questionnaire_id = self.question_questionnaire.questionnaire_id
-
-            if question_questionnaire_id != complete_question_id:
-                errors["question_questionnaire"] = "Этот вопрос не принадлежит выбранной анкете"
-
-        if self.question_questionnaire_id and self.answer_option_id:
-            if self.answer_option.question_id != self.question_questionnaire_id:
-                errors["answer_option"] = "Этот вариант ответа не принадлежит выбранному вопросу."
-
-        if errors:
-            raise ValidationError(errors)
+        return f"{self.question_code}: {self.value}"

@@ -3,20 +3,27 @@ from django.test import TestCase
 from django.urls import reverse
 
 from .models import Module, ModuleCompletion
+from users.models import Department
 
 
 class OnboardingTests(TestCase):
     def setUp(self):
         User = get_user_model()
 
+        self.department = Department.objects.create(
+            name="Тестовый отдел",
+        )
+
         self.employee = User.objects.create_user(
             username="employee",
             password="test-password-123",
+            department=self.department,
         )
 
         self.other_employee = User.objects.create_user(
             username="other_employee",
             password="test-password-456",
+            department=self.department,
         )
 
         self.module = Module.objects.create(
