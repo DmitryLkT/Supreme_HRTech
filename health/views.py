@@ -6,7 +6,10 @@ from django.utils import timezone
 
 from health.services.submissions import create_submission
 from health.services.periods import get_week_start
+from health.services.reports import get_report_participation, get_question_report, get_weekly_question_report
 from .models import QuestionnaireVersion, Submission
+from .decorators import hr_required
+from .froms import HRReportFilterForm
 
 @login_required
 def questionnaire_detail(request, version_id):
@@ -100,4 +103,57 @@ def questionnaire_detail(request, version_id):
         }
     )
 
+@hr_required
+def hr_report(request):
+    form = HRReportFilterForm()
+    state = "initial"
+    participation = None
+    question_report = None
+    weekly_report = None
+
+    if request.GET.get("period_start") is not None:
+        form = HRReportFilterForm(request.GET)
+        if form.is_valid():
+            state = "valid"
+
+            questionnaire = form.cleaned_data["questionnaire"]
+            period_start = form.cleaned_data["period_start"]
+            period_end = form.cleaned_data["period_end"]
+            department =  form.cleaned_data["department"]
+            if department == "":
+                department = None
+
+            participation = get_report_participation(
+                questionnaire=questionnaire,
+                period_start=period_start,
+                period_end=period_end,
+                department=department)
+
+            if participation["participant_count"] == 0:
+                state = "empty"
+            elif participation["is_available"] is False:
+                state = "insufficient"
+            else:
+                question_report = get_question_report(
+                    questionnaire=questionnaire,
+                    period_start=period_start,
+                    period_end=period_end,
+                    department=department)
+                weekly_report = get_weekly_question_report(
+                    questionnaire=questionnaire,
+                    period_start=period_start,
+                    period_end=period_end,
+                    department=department)
+        else:
+            state = "invalid"
+
+    return render(request,
+                  "health/hr_report.html",
+                  {
+                      "form": form,
+                      "state": state,
+                      "participation": participation,
+                      "question_report": question_report,
+                      "weekly_report": weekly_report,
+                  })
 
