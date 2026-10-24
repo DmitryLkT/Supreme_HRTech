@@ -1,3 +1,5 @@
+from datetime import timedelta
+
 from django.contrib.auth.decorators import login_required
 from django.shortcuts import render, get_object_or_404
 from django.core.exceptions import ValidationError
@@ -110,6 +112,8 @@ def hr_report(request):
     participation = None
     question_report = None
     weekly_report = None
+    series = {}
+    weeks = []
 
     if request.GET.get("period_start") is not None:
         form = HRReportFilterForm(request.GET)
@@ -139,11 +143,27 @@ def hr_report(request):
                     period_start=period_start,
                     period_end=period_end,
                     department=department)
+
                 weekly_report = get_weekly_question_report(
                     questionnaire=questionnaire,
                     period_start=period_start,
                     period_end=period_end,
                     department=department)
+
+                current_week = get_week_start(period_start)
+                last_week = get_week_start(period_end)
+                while current_week <= last_week:
+                    weeks.append(current_week)
+                    current_week += timedelta(weeks=1)
+
+                question_codes = weekly_report["question_codes"]
+
+                for question_code in question_codes:
+                    series[question_code] = [None] * len(weeks)
+
+                for point in weekly_report["points"]:
+                    week_index = weeks.index(point["week_start"])
+                    series[point["question_code"]][week_index] = point["average_value"]
         else:
             state = "invalid"
 
@@ -155,5 +175,7 @@ def hr_report(request):
                       "participation": participation,
                       "question_report": question_report,
                       "weekly_report": weekly_report,
+                      "weeks": weeks,
+                      "series": series
                   })
 

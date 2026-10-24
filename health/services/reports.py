@@ -98,6 +98,15 @@ def get_weekly_question_report(*, questionnaire, period_start, period_end, depar
         department=department,
     )
 
+    question_codes = set()
+    for submission in submissions.select_related("version_quest"):
+        definition = submission.version_quest.definition
+
+        for category in definition["categories"]:
+            for question in category["questions"]:
+                question_codes.add(question["code"])
+
+
     weekly_stats = (
         submissions
         .filter(answers__isnull=False)
@@ -119,6 +128,7 @@ def get_weekly_question_report(*, questionnaire, period_start, period_end, depar
     )
 
     return {
+        "question_codes": sorted(question_codes),
         "points": [
             {
                 "week_start": row["evaluated_week_start"],
