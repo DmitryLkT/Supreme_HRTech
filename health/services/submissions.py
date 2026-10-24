@@ -4,7 +4,7 @@ from django.core.exceptions import ValidationError
 from django.utils import timezone
 from django.db import IntegrityError, transaction
 
-from models import Submission, Answer
+from ..models import Submission, Answer
 from .periods import get_week_start, get_expiration_date
 
 def create_submission(*, employee, version, department, answers):
