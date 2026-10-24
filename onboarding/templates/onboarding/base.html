@@ -20,7 +20,7 @@
                 <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><path d="M16 21v-2a4 4 0 0 0-4-4H6a4 4 0 0 0-4 4v2M22 21v-2a4 4 0 0 0-3-3.87"/><circle cx="9" cy="7" r="4"/></svg>
                 Прогресс сотрудников
             </a>
-            <a class="nav-item{% if request.resolver_match.url_name == 'hr_health' %} active{% endif %}" href="{% url 'hr_health' %}">Самочувствие</a>
+            <a class="nav-item{% if request.resolver_match.url_name == 'hr_report' %} active{% endif %}" href="{% url 'hr_report' %}">Самочувствие</a>
             {% if user.is_superuser %}<a class="nav-item" href="{% url 'admin:index' %}">Django-админка →</a>{% endif %}
         {% else %}
             <div class="nav-label">Мой онбординг</div>

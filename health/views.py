@@ -1,6 +1,7 @@
 from datetime import timedelta
 
 from django.contrib.auth.decorators import login_required
+from django.http import Http404
 from django.shortcuts import render, get_object_or_404
 from django.core.exceptions import ValidationError
 from django.shortcuts import redirect
@@ -104,6 +105,22 @@ def questionnaire_detail(request, version_id):
             "form_error": form_error,
         }
     )
+
+@login_required
+def health_entry(request):
+    """Открывает актуальную версию опубликованной анкеты."""
+    version = (
+        QuestionnaireVersion.objects
+        .select_related("questionnaire")
+        .filter(questionnaire__is_published=True)
+        .order_by("-questionnaire_id", "-created_at")
+        .first()
+    )
+
+    if version is None:
+        raise Http404("Опубликованных анкет нет")
+
+    return questionnaire_detail(request, version_id=version.pk)
 
 @hr_required
 def hr_report(request):
