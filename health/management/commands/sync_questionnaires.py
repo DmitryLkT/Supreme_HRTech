@@ -3,7 +3,7 @@ from django.core.management.base import BaseCommand, CommandError
 from ...services.catalog_sync import sync_questionnaires
 
 class Command(BaseCommand):
-    help = "Синхронизирует определения анкет с базой данных"
+    """Синхронизирует определения анкет с базой данных"""
 
     def handle(self, *args, **options):
         try:
