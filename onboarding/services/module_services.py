@@ -22,3 +22,18 @@ def get_module(*, user, module_id):
     ModuleCompletion.objects.get_or_create(user=user, module=module)
 
     return module
+
+def get_published_modules():
+    """Получает все опубликованные учебные модули и преобразует в обычный список."""
+    return list(Module.objects.filter(is_published=True))
+
+def get_number_published_modules():
+    """Определяет, сколько модулей обучения опубликовано и учитывается при расчёте прогресса"""
+    return Module.objects.filter(is_published=True).count()
+
+def get_completion_dates_modules_employee(employee):
+    """Получает записи о завершении опубликованных модулей конкретным сотрудником"""
+    return {
+        item.module_id: item.completed_at
+        for item in ModuleCompletion.objects.filter(user=employee, module__is_published=True)
+    }
