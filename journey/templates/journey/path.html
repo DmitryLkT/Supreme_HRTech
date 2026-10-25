@@ -1,0 +1,48 @@
+{% extends "onboarding/base.html" %}
+{% block title %}Первые 90 дней — Altra{% endblock %}
+{% block content %}
+<div class="top"><div class="hello">
+    <div class="eyebrow">Твой путь</div>
+    <h1>Первые 90 дней</h1>
+    <p>Что от тебя ждут в каждый период. Отмечай шаги, когда они выполнены.</p>
+</div></div>
+
+{% if not has_steps %}
+<div class="empty-state">
+    <h3>План пока не заполнен</h3>
+    <p>Шаги на первые 90 дней добавит компания. Загляни сюда позже или спроси наставника.</p>
+    <a class="btn btn-ghost" href="{% url 'mentor' %}">Спросить наставника</a>
+</div>
+{% else %}
+<div class="day-bar">
+    <div class="day-track" role="progressbar" aria-label="День адаптации" aria-valuemin="1" aria-valuemax="90" aria-valuenow="{{ day }}"><div class="day-fill" style="width:{{ day_percent }}%"></div></div>
+    <div class="day-scale" aria-hidden="true"><span>День 1</span><span>30</span><span>60</span><span>90</span></div>
+    <p class="muted">Сегодня день {{ day }} из 90. Выполнено шагов: {{ done_total }} из {{ steps_total }}.</p>
+</div>
+
+<div class="period-grid">
+{% for period in periods %}
+    <section class="period-card{% if period.is_now %} now{% endif %}" aria-labelledby="period-{{ period.value }}">
+        <div class="period-head">
+            <h2 id="period-{{ period.value }}">{{ period.label }}</h2>
+            <span class="badge{% if period.is_now %} badge-now{% endif %}">{% if period.is_now %}Сейчас{% else %}{{ period.done }} из {{ period.steps|length }}{% endif %}</span>
+        </div>
+        <p class="muted">{{ period.description }}</p>
+        <ul class="todo-list">
+        {% for step in period.steps %}
+            <li>
+                <form method="post" action="{% url 'toggle_step' step_id=step.id %}">{% csrf_token %}
+                    <button type="submit" class="todo{% if step.done %} done{% endif %}" aria-pressed="{% if step.done %}true{% else %}false{% endif %}">
+                        <span class="todo-box" aria-hidden="true"><svg viewBox="0 0 24 24"><path d="M4 12l6 6L20 6"/></svg></span>
+                        <span class="todo-text">{{ step.title }}</span>
+                    </button>
+                </form>
+            </li>
+        {% empty %}<li class="muted">В этом периоде пока нет шагов.</li>{% endfor %}
+        </ul>
+    </section>
+{% endfor %}
+</div>
+{% if has_placeholder %}<p class="hr-note muted">Содержание шагов [ЗАПОЛНЯЕТСЯ КОМПАНИЕЙ И РУКОВОДИТЕЛЕМ]. Сейчас показан пример структуры.</p>{% endif %}
+{% endif %}
+{% endblock %}

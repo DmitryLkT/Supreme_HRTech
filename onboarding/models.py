@@ -57,6 +57,16 @@ class Question(models.Model):
     def __str__(self):
         return self.text[:80]
 
+    @property
+    def is_scored(self):
+        """Вопрос с правильным ответом: есть и верные, и неверные варианты.
+
+        Если все варианты помечены верными (или ни один), вопрос на ценности
+        и поведение: правильного ответа нет, оценка не выставляется.
+        """
+        flags = {option.is_correct for option in self.options.all()}
+        return flags == {True, False}
+
 #Варианты ответа на вопрос
 class AnswerOption(models.Model):
     question=models.ForeignKey(Question, on_delete=models.CASCADE, related_name="options", verbose_name="Вопрос")
@@ -70,3 +80,65 @@ class AnswerOption(models.Model):
 
     def __str__(self):
         return self.text
+
+
+#Последний ответ сотрудника на вопрос модуля
+class AnswerSubmission(models.Model):
+    """Последний ответ сотрудника на вопрос модуля.
+
+    Одна запись на пару (сотрудник, вопрос). При повторном ответе запись
+    обновляется, а attempts увеличивается.
+    """
+    user=models.ForeignKey(
+        settings.AUTH_USER_MODEL,
+        on_delete=models.CASCADE,
+        verbose_name="Сотрудник"
+    )
+
+    question=models.ForeignKey(
+        Question,
+        on_delete=models.CASCADE,
+        related_name="submissions",
+        verbose_name="Вопрос"
+    )
+
+    option=models.ForeignKey(
+        AnswerOption,
+        on_delete=models.CASCADE,
+        related_name="submissions",
+        verbose_name="Выбранный вариант"
+    )
+
+    is_correct=models.BooleanField(
+        null=True,
+        blank=True,
+        verbose_name="Верно (пусто для вопросов без правильного ответа)"
+    )
+
+    attempts=models.PositiveIntegerField(
+        default=1,
+        verbose_name="Попыток"
+    )
+
+    first_answered_at=models.DateTimeField(
+        auto_now_add=True,
+        verbose_name="Первый ответ"
+    )
+
+    updated_at=models.DateTimeField(
+        auto_now=True,
+        verbose_name="Последний ответ"
+    )
+
+    class Meta:
+        constraints=[
+            models.UniqueConstraint(
+                fields=["user", "question"],
+                name="unique_user_question_submission"
+            )
+        ]
+        verbose_name="Ответ сотрудника на вопрос модуля"
+        verbose_name_plural="Ответы сотрудников на вопросы модулей"
+
+    def __str__(self):
+        return f"{self.user} - {self.question}"

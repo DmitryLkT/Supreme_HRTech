@@ -7,7 +7,8 @@
     {% if error %}<p class="error" role="alert">{{ error }}</p>
     {% else %}
         <p>Твой ответ: <strong>{{ selected_option.text }}</strong></p>
-        {% if is_correct %}<p class="success">✓ Правильно!</p>
+        {% if not scored %}<p class="neutral">{{ message }}</p>
+        {% elif is_correct %}<p class="success">✓ Правильно!</p>
         {% else %}<p class="error">Пока неверно. Вернись к материалу и попробуй ещё раз.</p>
             {% if correct_option %}<p>Правильный ответ: <strong>{{ correct_option.text }}</strong></p>{% endif %}
         {% endif %}

@@ -4,7 +4,7 @@ from django.db.models import Count, Max, Q
 from django.shortcuts import get_object_or_404, render
 from django.views.decorators.http import require_GET
 
-from .models import Module, ModuleCompletion
+from .models import AnswerSubmission, Module, ModuleCompletion
 from .permissions import hr_required
 
 
@@ -63,8 +63,62 @@ def hr_employee_detail(request, user_id):
         module.employee_completed_at = completions.get(module.id)
     total_modules = len(modules)
     completed_count = len(completions)
+    submissions = AnswerSubmission.objects.filter(
+        user=employee, question__module__is_published=True,
+    )
+    scored = submissions.exclude(is_correct__isnull=True)
     return render(request, "onboarding/hr_employee_detail.html", {
         "employee": employee, "modules": modules,
+        "answers_total": submissions.count(),
+        "scored_total": scored.count(),
+        "scored_correct": scored.filter(is_correct=True).count(),
         "completed_count": completed_count, "total_modules": total_modules,
         "progress_percent": round(completed_count / total_modules * 100) if total_modules else 0,
+    })
+
+
+@hr_required
+@require_GET
+def hr_answers(request):
+    """Сводка ответов на вопросы модулей. Только агрегаты, без имён."""
+    modules = list(Module.objects.filter(is_published=True))
+    selected = None
+    raw = request.GET.get("module", "")
+    if raw.isdecimal():
+        selected = next((m for m in modules if m.id == int(raw)), None)
+
+    employee_ids = employees_queryset().values("id")
+    counts = {
+        row["option_id"]: row["n"]
+        for row in AnswerSubmission.objects
+        .filter(user_id__in=employee_ids, question__module__is_published=True)
+        .values("option_id").annotate(n=Count("id"))
+    }
+
+    blocks = []
+    for module in (modules if selected is None else [selected]):
+        questions = []
+        for question in module.questions.prefetch_related("options"):
+            options = list(question.options.all())
+            total = sum(counts.get(o.id, 0) for o in options)
+            scored = question.is_scored
+            rows = []
+            for option in options:
+                n = counts.get(option.id, 0)
+                rows.append({
+                    "text": option.text, "count": n,
+                    "percent": round(n / total * 100) if total else 0,
+                    "is_correct": option.is_correct if scored else None,
+                })
+            correct_n = sum(r["count"] for r in rows if r["is_correct"])
+            questions.append({
+                "text": question.text, "scored": scored, "total": total,
+                "rows": rows,
+                "correct_percent": round(correct_n / total * 100) if scored and total else None,
+            })
+        blocks.append({"module": module, "questions": questions})
+
+    return render(request, "onboarding/hr_answers.html", {
+        "modules": modules, "selected": selected, "blocks": blocks,
+        "employees_total": employees_queryset().count(),
     })

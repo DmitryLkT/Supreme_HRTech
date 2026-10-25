@@ -3,7 +3,10 @@ from django.http import JsonResponse
 from django.shortcuts import get_object_or_404, redirect, render
 from django.views.decorators.http import require_POST
 
-from .models import Module, ModuleCompletion, AnswerOption, Question
+from django.db import transaction
+from django.db.models import F
+
+from .models import AnswerOption, AnswerSubmission, Module, ModuleCompletion, Question
 from .permissions import employee_required, is_hr
 
 
@@ -77,8 +80,24 @@ def answer_question(request, question_id):
         }, status=400)
 
     selected_option = get_object_or_404(AnswerOption, id=option_id, question=question)
-    correct_option = question.options.filter(is_correct=True).first()
-    if selected_option.is_correct:
+    scored = question.is_scored
+    correct_option = question.options.filter(is_correct=True).first() if scored else None
+    is_correct = selected_option.is_correct if scored else None
+
+    with transaction.atomic():
+        submission, created = AnswerSubmission.objects.get_or_create(
+            user=request.user, question=question,
+            defaults={"option": selected_option, "is_correct": is_correct},
+        )
+        if not created:
+            AnswerSubmission.objects.filter(pk=submission.pk).update(
+                option=selected_option, is_correct=is_correct,
+                attempts=F("attempts") + 1,
+            )
+
+    if not scored:
+        message = "Ответ записан. Здесь нет правильного и неправильного: важно, как ты поступил бы на самом деле."
+    elif is_correct:
         message = "Правильно!"
     else:
         message = "Неверно. Попробуй ещё раз."
@@ -86,10 +105,12 @@ def answer_question(request, question_id):
             message += f" Правильный ответ: {correct_option.text}"
 
     if is_ajax:
-        return JsonResponse({"is_correct": selected_option.is_correct, "message": message})
+        return JsonResponse({"is_correct": is_correct, "scored": scored, "message": message})
     return render(request, "onboarding/question_result.html", {
         "question": question,
         "selected_option": selected_option,
-        "is_correct": selected_option.is_correct,
+        "scored": scored,
+        "is_correct": is_correct,
         "correct_option": correct_option,
+        "message": message,
     })
