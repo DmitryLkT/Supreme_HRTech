@@ -5,7 +5,7 @@ from django.contrib.auth import get_user_model
 from django.utils import timezone
 
 from users.models import Department
-from ..models import Module, ModuleCompletion
+from ..models import Module, ModuleCompletion, Question
 
 class ModuleModelTest(TestCase):
     def test_module_created(self):
@@ -276,3 +276,144 @@ class ModuleCompletionModelTest(TestCase):
             str(completion),
             f"{self.user} - {self.module}",
         )
+
+class QuestionModelTest(TestCase):
+
+    def setUp(self):
+        """Создание модуля для тестов."""
+        self.module = Module.objects.create(
+            title="test",
+            description="test",
+        )
+
+    def test_question_created(self):
+        """Создание вопроса."""
+        question = Question.objects.create(
+            module=self.module,
+            text="Как тебя зовут?",
+        )
+
+        self.assertIsNotNone(question.pk)
+
+    def test_default_order(self):
+        """Значение order по умолчанию."""
+        question = Question(
+            module=self.module,
+            text="Как тебя зовут?",
+        )
+
+        self.assertEqual(question.order, 0)
+
+    def test_module_is_required(self):
+        """Обязательное поле module."""
+        question = Question(
+            text="Как тебя зовут?",
+        )
+
+        with self.assertRaises(ValidationError) as context:
+            question.full_clean()
+
+        self.assertIn("module", context.exception.message_dict)
+
+    def test_text_is_required(self):
+        """Обязательное поле text."""
+        question = Question(
+            module=self.module,
+        )
+
+        with self.assertRaises(ValidationError) as context:
+            question.full_clean()
+
+        self.assertIn("text", context.exception.message_dict)
+
+    def test_order_cannot_be_negative(self):
+        """Отрицательный order."""
+        question = Question(
+            module=self.module,
+            text="Как тебя зовут?",
+            order=-1,
+        )
+
+        with self.assertRaises(ValidationError) as context:
+            question.full_clean()
+
+        self.assertIn("order", context.exception.message_dict)
+
+    def test_str_returns_text(self):
+        """Строковое представление."""
+        question = Question(
+            module=self.module,
+            text="Как тебя зовут?",
+        )
+
+        self.assertEqual(str(question), "Как тебя зовут?")
+
+    def test_str_truncates_long_text(self):
+        """Ограничение строкового представления 80 символами."""
+        text = "t" * 100
+        question = Question(
+            module=self.module,
+            text=text,
+        )
+
+        self.assertEqual(str(question), text[:80])
+
+    def test_default_ordering(self):
+        """Сортировка по order."""
+        question1 = Question.objects.create(
+            module=self.module,
+            text="Первый вопрос",
+            order=3,
+        )
+        question2 = Question.objects.create(
+            module=self.module,
+            text="Второй вопрос",
+            order=1,
+        )
+        question3 = Question.objects.create(
+            module=self.module,
+            text="Третий вопрос",
+            order=4,
+        )
+        question4 = Question.objects.create(
+            module=self.module,
+            text="Четвёртый вопрос",
+            order=2,
+        )
+
+        questions = [question2, question4, question1, question3]
+        qs = list(Question.objects.all())
+
+        self.assertEqual(qs, questions)
+
+    def test_default_ordering_same_order_by_id(self):
+        """Сортировка при одинаковом order по id."""
+        question1 = Question.objects.create(
+            module=self.module,
+            text="Первый вопрос",
+            order=1,
+        )
+        question2 = Question.objects.create(
+            module=self.module,
+            text="Второй вопрос",
+            order=1,
+        )
+        question3 = Question.objects.create(
+            module=self.module,
+            text="Третий вопрос",
+            order=1,
+        )
+
+        questions = [question1, question2, question3]
+        qs = list(Question.objects.all())
+
+        self.assertEqual(qs, questions)
+
+    def test_related_name_questions(self):
+        """Получение вопросов через related_name."""
+        question = Question.objects.create(
+            module=self.module,
+            text="Как тебя зовут?",
+        )
+
+        self.assertEqual(list(self.module.questions.all()), [question])
