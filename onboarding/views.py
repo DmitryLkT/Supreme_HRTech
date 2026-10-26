@@ -4,10 +4,10 @@ from django.shortcuts import redirect, render
 from django.views.decorators.http import require_POST
 from django.core.exceptions import PermissionDenied
 
-from .permissions import employee_required, is_hr
-from .services.module_services import get_module_detail, get_module
-from .services.progress_services import get_user_module_progress
-from .services.question_service import get_question, get_answer_option_question, validate_answer_option_id, check_answer
+from onboarding.services.permissions_service import employee_required, is_hr
+from onboarding.services.module_services import get_module_detail, get_module
+from onboarding.services.progress_services import get_user_module_progress
+from onboarding.services.question_service import get_question, get_answer_option_question, validate_answer_option_id, check_answer
 
 @login_required
 def home(request):

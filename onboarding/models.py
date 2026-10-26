@@ -1,8 +1,8 @@
 from django.db import models
 from django.conf import settings
 
-#Модуль
 class Module(models.Model):
+    """Модуль"""
     title=models.CharField(max_length=200, verbose_name="Название")
     description=models.TextField(verbose_name="Описание")
     order=models.PositiveIntegerField(default=0, verbose_name="Порядок")
@@ -14,17 +14,15 @@ class Module(models.Model):
         verbose_name="Модули адаптации"
         verbose_name_plural=verbose_name
 
-    # TODO
     def __str__(self):
         return self.title
 
-#Завершенные модули сотрудником
 class ModuleCompletion(models.Model):
+    """Завершенные модули сотрудником"""
     user=models.ForeignKey(settings.AUTH_USER_MODEL, on_delete=models.CASCADE, verbose_name="Сотрудник")
     module=models.ForeignKey(Module, on_delete=models.CASCADE, verbose_name="Модуль")
     completed_at=models.DateTimeField(auto_now_add=True, verbose_name="Дата завершения")
 
-    #TODO
     class Meta:
         constraints=[
             models.UniqueConstraint(
@@ -43,8 +41,8 @@ class ModuleCompletion(models.Model):
     def __str__(self):
         return f"{self.user} - {self.module}"
 
-#Вопросы в модуле
 class Question(models.Model):
+    """Вопросы в модуле"""
     module = models.ForeignKey(Module, on_delete=models.CASCADE, related_name="questions", verbose_name="Модуль")
     text=models.TextField(verbose_name="Текст вопроса")
     order=models.PositiveIntegerField(default=0, verbose_name="Порядок")
@@ -57,8 +55,8 @@ class Question(models.Model):
     def __str__(self):
         return self.text[:80]
 
-#Варианты ответа на вопрос
 class AnswerOption(models.Model):
+    """Варианты ответа на вопрос"""
     question=models.ForeignKey(Question, on_delete=models.CASCADE, related_name="options", verbose_name="Вопрос")
     text=models.TextField(max_length=300, verbose_name="Текст ответа")
     is_correct=models.BooleanField(default=False, verbose_name="Правильный ответ")

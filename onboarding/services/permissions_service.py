@@ -5,7 +5,6 @@ from django.core.exceptions import PermissionDenied
 
 HR_PERMISSION = "onboarding.view_employee_progress"
 
-
 def is_hr(user):
     return (
         user.is_authenticated
