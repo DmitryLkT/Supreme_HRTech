@@ -21,7 +21,7 @@ def calculate_general_statistics(*, employees, total_modules):
 def calculate_progress_percentage(*, page, total_modules):
     """Рассчитывает процент прохождения обучения для каждого сотрудника на текущей странице"""
     for employee in page.object_list:
-        employee.progress_percent = round(employee.completed_count / total_modules * 100) if total_modules else 0
+        employee.progress_percent = calculate_progress_percent(completed_count=employee.completed_count, total_modules=total_modules)
 
 def calculate_progress_percent(*, completed_count, total_modules):
     """Возвращает процент прохождения обучения"""

@@ -12,7 +12,7 @@ from onboarding.services.module_services import get_published_modules, get_compl
 @require_GET
 def hr_dashboard(request):
     """Формирует HR-панель управления обучениея сотрудников"""
-    total_modules = get_number_published_modules
+    total_modules = get_number_published_modules()
 
     employees = get_employees_queryset()
 
