@@ -2,6 +2,7 @@
 {% block title %}Прогресс сотрудников — Altra{% endblock %}
 {% block content %}
 <div class="top"><div class="hello"><div class="eyebrow">HR-кабинет</div><h1>Прогресс сотрудников</h1><p>Адаптация команды — всё в одном месте.</p></div></div>
+<p class="quick-links"><a class="tab" href="{% url 'hr_path' %}">Путь 30/60/90</a><a class="tab" href="{% url 'hr_mentor' %}">Вопросы наставнику</a></p>
 <div class="hr-stats">
     <div class="card"><div class="card-label">Активных сотрудников</div><p class="card-value">{{ employee_count }}</p></div>
     <div class="card"><div class="card-label">Завершили маршрут</div><p class="card-value">{{ finished_count }}</p></div>
@@ -15,7 +16,7 @@
     <button class="btn btn-primary" type="submit">Найти</button>
     {% if query %}<a class="btn btn-ghost" href="{% url 'hr_dashboard' %}">Сбросить</a>{% endif %}
 </form>
-{% if not total_modules %}<p class="muted">Пока нет опубликованных модулей. Процент прогресса равен нулю.</p>{% endif %}
+{% if not total_modules %}<div class="empty-state"><h3>Нет опубликованных модулей</h3><p>Процент прогресса равен нулю, пока в админке не опубликован хотя бы один модуль.</p></div>{% endif %}
 <div class="card hr-table-card"><div class="hr-table-wrap">
 <table class="hr-table">
     <caption class="sr-only">Прогресс адаптации сотрудников</caption>

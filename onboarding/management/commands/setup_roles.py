@@ -6,8 +6,7 @@ from django.db import transaction
 from onboarding.models import ModuleCompletion
 
 class Command(BaseCommand):
-    help = "Создает группу HR и назначает право просмотра прогресса."
-
+    """Создает группу HR и назначает право просмотра прогресса"""
     @transaction.atomic
     def handle(self, *args, **options):
         content_type = ContentType.objects.get_for_model(ModuleCompletion)

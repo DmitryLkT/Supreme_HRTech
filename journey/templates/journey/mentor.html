@@ -1,0 +1,40 @@
+{% extends "onboarding/base.html" %}
+{% block title %}Спросить наставника — Altra{% endblock %}
+{% block content %}
+<div class="top"><div class="hello">
+    <div class="eyebrow">Поддержка</div>
+    <h1>Спросить наставника</h1>
+    <p>Вопросы не бывают глупыми. Напиши коротко, ответ появится на этой странице.</p>
+</div></div>
+
+<form method="post" class="card mentor-form" novalidate>
+    {% csrf_token %}
+    <fieldset class="chip-group">
+        <legend>О чём вопрос</legend>
+        {% for value, label in categories %}
+        <label class="chip"><input type="radio" name="category" value="{{ value }}"{% if value == category %} checked{% endif %}><span>{{ label }}</span></label>
+        {% endfor %}
+    </fieldset>
+    <label class="field-label" for="mentor-text">Твой вопрос</label>
+    <textarea id="mentor-text" name="text" rows="5" maxlength="{{ max_length }}" required{% if error %} aria-invalid="true" aria-describedby="mentor-error"{% endif %}>{{ text }}</textarea>
+    {% if error %}<p class="error" id="mentor-error" role="alert">{{ error }}</p>{% endif %}
+    <div class="form-foot">
+        <span class="muted">Вопрос видят только ты и HR.</span>
+        <button type="submit" class="btn btn-primary">Отправить</button>
+    </div>
+</form>
+
+<div class="section-title"><h3>Твои вопросы</h3></div>
+{% for q in questions %}
+<article class="card mentor-q">
+    <div class="mentor-q-head">
+        <b>{{ q.text }}</b>
+        <span class="badge{% if q.is_answered %} badge-now{% endif %}">{% if q.is_answered %}Есть ответ{% else %}Ждёт ответа{% endif %}</span>
+    </div>
+    <p class="muted">{{ q.get_category_display }} · {{ q.created_at|date:"d.m.Y H:i" }}</p>
+    {% if q.is_answered %}<div class="mentor-answer"><span class="card-label">Ответ{% if q.answered_at %} · {{ q.answered_at|date:"d.m.Y H:i" }}{% endif %}</span><p>{{ q.answer|linebreaksbr }}</p></div>{% endif %}
+</article>
+{% empty %}
+<div class="empty-state"><h3>Вопросов пока нет</h3><p>Если что-то непонятно, спроси здесь. Это нормально.</p></div>
+{% endfor %}
+{% endblock %}

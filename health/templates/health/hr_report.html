@@ -1,0 +1,256 @@
+{% extends "onboarding/base.html" %}
+{% load static %}
+
+{% block title %}Самочувствие сотрудников — Altra{% endblock %}
+
+{% block extra_head %}
+<link rel="stylesheet" href="{% static 'health/css/health.css' %}">
+{% endblock %}
+
+{% block content %}
+<div class="top">
+    <div class="hello">
+        <div class="eyebrow">HR-кабинет</div>
+        <h1>Самочувствие сотрудников</h1>
+        <p>Выберите анкету, период и отдел для формирования отчёта.</p>
+    </div>
+</div>
+
+<div class="card">
+    <form method="get">
+        {{ form.as_p }}
+        <button class="btn" type="submit">Показать</button>
+    </form>
+</div>
+
+{% if state == "initial" %}
+    <div class="card">
+        <p class="muted">Выберите фильтры и нажмите «Показать».</p>
+    </div>
+{% elif state == "invalid" %}
+    <div class="card">
+        <p class="muted">
+            Исправьте ошибки в фильтрах и отправьте форму ещё раз.
+        </p>
+    </div>
+{% elif state == "empty" %}
+    <div class="card">
+        <p class="muted">По выбранным фильтрам данных нет.</p>
+    </div>
+{% elif state == "insufficient" %}
+    <div class="card">
+        <p class="muted">
+            Недостаточно участников для отображения отчёта.
+        </p>
+    </div>
+{% endif %}
+
+{% if state == "valid" or state == "empty" or state == "insufficient" %}
+    <div class="card">
+        <div class="card-label">Количество участников</div>
+        <p class="card-value">{{ participation.participant_count }}</p>
+    </div>
+{% endif %}
+
+{% if state == "valid" %}
+    <div class="section-title">
+        <h3>Средние оценки по вопросам</h3>
+    </div>
+
+    <div class="card hr-table-card">
+        <div class="hr-table-wrap">
+            <table class="hr-table">
+                <caption class="sr-only">
+                    Средние оценки по вопросам за выбранный период
+                </caption>
+                <thead>
+                    <tr>
+                        <th scope="col">Вопрос</th>
+                        <th scope="col">Средняя оценка</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {% for question in question_report.questions %}
+                        <tr>
+                            <td>{{ question.question_code }}</td>
+                            <td>{{ question.average_value|floatformat:2 }}</td>
+                        </tr>
+                    {% empty %}
+                        <tr>
+                            <td colspan="2">
+                                Ни один вопрос не набрал минимум пять участников
+                                для отображения средней оценки.
+                            </td>
+                        </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
+    </div>
+
+    <div class="section-title">
+        <h3>Динамика оценок по неделям</h3>
+    </div>
+
+    <div class="card">
+        <p id="weekly-chart-description" class="muted">
+            Даты обозначают начало оцениваемой недели.
+            Пропуски означают отсутствие доступной оценки.
+            Нажмите на название вопроса в легенде,
+            чтобы скрыть или показать его линию.
+        </p>
+
+        <p id="weekly-chart-message" class="muted" role="status">
+            Загрузка графика…
+        </p>
+
+        <div style="position: relative; height: 400px;">
+            <canvas
+                id="weekly-chart"
+                role="img"
+                aria-label="Средние оценки по вопросам по неделям"
+                aria-describedby="weekly-chart-description"
+            >
+                Для отображения графика нужен браузер с поддержкой canvas.
+            </canvas>
+        </div>
+
+        <noscript>
+            <p class="muted">
+                Для отображения графика включите JavaScript.
+            </p>
+        </noscript>
+    </div>
+
+    {{ weeks|json_script:"weekly-weeks-data" }}
+    {{ series|json_script:"weekly-series-data" }}
+
+    <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.7/dist/chart.umd.min.js"></script>
+
+    <script>
+        (() => {
+            const message = document.getElementById("weekly-chart-message");
+
+            if (typeof Chart === "undefined") {
+                message.textContent =
+                    "Не удалось загрузить библиотеку графиков. " +
+                    "Проверьте подключение к интернету и обновите страницу.";
+                return;
+            }
+
+            const weeks = JSON.parse(
+                document.getElementById("weekly-weeks-data").textContent
+            );
+
+            const series = JSON.parse(
+                document.getElementById("weekly-series-data").textContent
+            );
+
+            const entries = Object.entries(series);
+
+            const labels = weeks.map((week) => {
+                const [year, month, day] = week.split("-");
+                return `${day}.${month}.${year}`;
+            });
+
+            const datasets = entries.map(([questionCode, values], index) => {
+                const hue = (index * 137.508) % 360;
+                const color = `hsl(${hue}, 65%, 42%)`;
+
+                return {
+                    label: questionCode,
+                    data: values,
+                    borderColor: color,
+                    backgroundColor: color,
+                    borderWidth: 2,
+                    pointRadius: 4,
+                    pointHoverRadius: 6,
+                    tension: 0,
+                    spanGaps: false,
+                };
+            });
+
+            const hasAvailableValues = entries.some(
+                ([questionCode, values]) =>
+                    values.some((value) => value !== null)
+            );
+
+            if (hasAvailableValues) {
+                message.hidden = true;
+            } else {
+                message.textContent =
+                    "За выбранные недели нет доступных средних оценок. " +
+                    "Для каждой точки требуется минимум пять участников.";
+            }
+
+            new Chart(document.getElementById("weekly-chart"), {
+                type: "line",
+                data: {
+                    labels: labels,
+                    datasets: datasets,
+                },
+                options: {
+                    responsive: true,
+                    maintainAspectRatio: false,
+                    interaction: {
+                        mode: "index",
+                        intersect: false,
+                    },
+                    plugins: {
+                        legend: {
+                            position: "bottom",
+                        },
+                        tooltip: {
+                            callbacks: {
+                                title: (items) =>
+                                    `Неделя с ${items[0].label}`,
+                                label: (context) => {
+                                    const value = context.parsed.y;
+
+                                    if (value === null) {
+                                        return "";
+                                    }
+
+                                    const formatted = value.toLocaleString(
+                                        "ru-RU",
+                                        {
+                                            minimumFractionDigits: 2,
+                                            maximumFractionDigits: 2,
+                                        }
+                                    );
+
+                                    return `${context.dataset.label}: ${formatted}`;
+                                },
+                            },
+                        },
+                    },
+                    scales: {
+                        x: {
+                            title: {
+                                display: true,
+                                text: "Начало оцениваемой недели",
+                            },
+                            ticks: {
+                                autoSkip: true,
+                                maxRotation: 45,
+                                minRotation: 0,
+                            },
+                        },
+                        y: {
+                            min: 1,
+                            max: 5,
+                            ticks: {
+                                stepSize: 1,
+                            },
+                            title: {
+                                display: true,
+                                text: "Средняя оценка",
+                            },
+                        },
+                    },
+                },
+            });
+        })();
+    </script>
+{% endif %}
+{% endblock %}

@@ -1,4 +1,5 @@
 from django import template
+
 from onboarding.permissions import is_hr
 
 register = template.Library()

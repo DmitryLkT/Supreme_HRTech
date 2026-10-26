@@ -1,5 +1,11 @@
+// Страницы переключаются через Turbo без полной перезагрузки, поэтому всё, что привязывается
+// к элементам страницы, выполняется в initPage() на каждой странице (и один раз на первой).
+// Повторный вызов безопасен: уже обработанные элементы помечаются.
+
 // Только визуализация прогресса. Сохранение данных выполняет Django.
-document.querySelectorAll('.ring[data-progress]').forEach(ring => {
+function initRings() { document.querySelectorAll('.ring[data-progress]').forEach(ring => {
+    if (ring.dataset.ready) return;
+    ring.dataset.ready = "1";
     const circle = ring.querySelector('.fg');
     if (!circle) return;
     const percent = Math.max(0, Math.min(100, Number(ring.dataset.progress) || 0));
@@ -9,12 +15,14 @@ document.querySelectorAll('.ring[data-progress]').forEach(ring => {
     requestAnimationFrame(() => requestAnimationFrame(() => {
         circle.style.strokeDashoffset = String(length * (1 - percent / 100));
     }));
-});
+}); }
 
 // Проверка ответа
-document.querySelectorAll(".question-form").forEach(form => {
+function initQuestionForms() { document.querySelectorAll(".question-form").forEach(form => {
+    if (form.dataset.ready) return;
     const button = form.querySelector('button[type="submit"]');
     if (!button) return;
+    form.dataset.ready = "1";
 
     const result = document.createElement("p");
     result.className = "answer-feedback";
@@ -85,9 +93,11 @@ document.querySelectorAll(".question-form").forEach(form => {
                 );
             }
 
-            result.className = answer.is_correct
-                ? "answer-feedback success"
-                : "answer-feedback error";
+            result.className = answer.scored === false
+                ? "answer-feedback neutral"
+                : answer.is_correct
+                    ? "answer-feedback success"
+                    : "answer-feedback error";
 
             result.textContent = answer.message;
             result.hidden = false;
@@ -105,10 +115,10 @@ document.querySelectorAll(".question-form").forEach(form => {
             sending = false;
         }
     });
-});
+}); }
 
 // анимация страницы
-(() => {
+function initReveal() {
     if (!document.querySelector(".checklist")) return;
 
     if (
@@ -142,4 +152,77 @@ document.querySelectorAll(".question-form").forEach(form => {
         block.classList.add("reveal-on-scroll");
         observer.observe(block);
     });
-})();
+}
+
+// Крупный шрифт: выбор запоминается в браузере (если хранилище доступно)
+function syncFontButton() {
+    const button = document.getElementById("font-toggle");
+    if (button) button.setAttribute("aria-pressed", document.documentElement.dataset.font === "large" ? "true" : "false");
+}
+document.addEventListener("click", event => {
+    const button = event.target instanceof Element ? event.target.closest("#font-toggle") : null;
+    if (!button) return;
+    const root = document.documentElement;
+    const large = root.dataset.font !== "large";
+    if (large) root.dataset.font = "large"; else delete root.dataset.font;
+    try { localStorage.setItem("altra-font", large ? "large" : "normal"); } catch (e) { /* без хранилища выбор живёт до перезагрузки */ }
+    syncFontButton();
+});
+
+// Защита от двойной отправки обычных (не Turbo) форм: кнопка блокируется после старта отправки
+window.addEventListener("pageshow", () => {
+    document.querySelectorAll('button[aria-busy="true"]').forEach(b => {
+        b.disabled = false; b.removeAttribute("aria-busy");
+    });
+});
+document.addEventListener("submit", event => {
+    const form = event.target;
+    if (!(form instanceof HTMLFormElement) || form.classList.contains("question-form")) return;
+    const button = form.querySelector('button[type="submit"].btn');
+    if (!button) return;
+    setTimeout(() => {
+        if (event.defaultPrevented) return;   // отправкой занялся Turbo (см. turbo:submit-start)
+        button.disabled = true;
+        button.setAttribute("aria-busy", "true");
+    }, 0);
+});
+
+// ---- Бесшовные переходы (Turbo Drive) ----
+// Форма отправляется без перезагрузки: показываем состояние «в процессе» на кнопке.
+document.addEventListener("turbo:submit-start", event => {
+    const submitter = event.detail && event.detail.formSubmission && event.detail.formSubmission.submitter;
+    if (submitter) submitter.setAttribute("aria-busy", "true");
+});
+document.addEventListener("turbo:submit-end", event => {
+    const submitter = event.detail && event.detail.formSubmission && event.detail.formSubmission.submitter;
+    if (submitter) submitter.removeAttribute("aria-busy");
+});
+
+// Ошибочные ответы на обычные переходы (404, 403, 500) и редирект на вход открываем обычной загрузкой:
+// у этих страниц своя вёрстка и свои стили, их не нужно подмешивать в открытую страницу.
+// Ответы на формы (например, 400 с подсказкой об ошибке) Turbo показывает сам.
+document.addEventListener("turbo:before-fetch-response", event => {
+    if (event.target instanceof HTMLFormElement) return;
+    const response = event.detail.fetchResponse;
+    const toLogin = response.redirected && /^\/login\//.test(response.location.pathname);
+    if (response.statusCode >= 400 || toLogin) {
+        event.preventDefault();
+        window.location.assign(response.location.href);
+    }
+});
+
+function initPage() {
+    syncFontButton();
+    initRings();
+    initQuestionForms();
+    initReveal();
+}
+document.addEventListener("turbo:load", initPage);
+document.addEventListener("turbo:render", () => {
+    syncFontButton();
+    // после перехода переносим фокус на содержимое: экранный диктор читает новую страницу
+    const main = document.getElementById("main-content");
+    if (main) main.focus({ preventScroll: true });
+});
+if (document.readyState === "loading") document.addEventListener("DOMContentLoaded", initPage);
+else initPage();

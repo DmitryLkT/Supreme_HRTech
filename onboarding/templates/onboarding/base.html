@@ -6,33 +6,50 @@
     <meta charset="utf-8">
     <meta name="viewport" content="width=device-width, initial-scale=1">
     <title>{% block title %}Altra{% endblock %}</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
     <link rel="stylesheet" href="{% static 'onboarding/css/app.css' %}">
+    <meta name="turbo-cache-control" content="no-cache">
+    <meta name="view-transition" content="same-origin">
+    <script>try{if(localStorage.getItem("altra-font")==="large")document.documentElement.dataset.font="large"}catch(e){}</script>
+    {% include "onboarding/_splash_head.html" %}
+    <script src="{% static 'onboarding/js/turbo.js' %}" defer></script>
+    <script src="{% static 'onboarding/js/app.js' %}" defer></script>
+    {% block extra_head %}{% endblock %}
 </head>
 <body>
+{% include "onboarding/_splash.html" %}
+<a class="skip-link" href="#main-content">Перейти к содержимому</a>
+{% with u=request.resolver_match.url_name %}
 <div class="app">
     <aside class="sidebar" aria-label="Навигация">
-        <a class="brand" href="{% url 'home' %}"><div class="brand-mark">A</div><div class="brand-name">Altra</div></a>
-        <nav class="nav">
+        <a class="brand" id="brand" data-turbo-permanent href="{% url 'home' %}" aria-label="Altra — на главную"><span class="brand-logo" style="width:128px"><img class="logo-anim" src="{% static 'onboarding/img/altra-logo-anim.webp' %}" alt="Altra" width="128" height="57"><img class="logo-still" style="display:none" src="{% static 'onboarding/img/altra-logo.png' %}" alt="" aria-hidden="true" width="128" height="57"></span></a>
+        <nav class="nav" aria-label="Разделы">
         {% if user.is_superuser or user_is_hr %}
             <div class="nav-label">Команда</div>
-            <a class="nav-item{% if request.resolver_match.url_name == 'hr_dashboard' or request.resolver_match.url_name == 'hr_employee_detail' %} active{% endif %}" href="{% url 'hr_dashboard' %}">
+            <a class="nav-item{% if u == 'hr_dashboard' or u == 'hr_employee_detail' %} active{% endif %}" href="{% url 'hr_dashboard' %}"{% if u == 'hr_dashboard' or u == 'hr_employee_detail' %} aria-current="page"{% endif %}>
                 <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><path d="M16 21v-2a4 4 0 0 0-4-4H6a4 4 0 0 0-4 4v2M22 21v-2a4 4 0 0 0-3-3.87"/><circle cx="9" cy="7" r="4"/></svg>
-                Прогресс сотрудников
+                Сотрудники
             </a>
-            <span class="nav-item nav-disabled" aria-disabled="true">Самочувствие <span class="step-tag">Скоро</span></span>
-            {% if user.is_superuser %}<a class="nav-item" href="{% url 'admin:index' %}">Django-админка →</a>{% endif %}
+            <a class="nav-item{% if u == 'hr_answers' %} active{% endif %}" href="{% url 'hr_answers' %}"{% if u == 'hr_answers' %} aria-current="page"{% endif %}>Ответы на вопросы</a>
+            {% url 'hr_health' as hr_health_url %}{% if hr_health_url %}<a class="nav-item{% if u == 'hr_health' %} active{% endif %}" href="{{ hr_health_url }}"{% if u == 'hr_health' %} aria-current="page"{% endif %}>Самочувствие</a>{% endif %}
+            <a class="nav-item{% if u == 'hr_path' %} active{% endif %}" href="{% url 'hr_path' %}"{% if u == 'hr_path' %} aria-current="page"{% endif %}>Путь 30/60/90</a>
+            <a class="nav-item{% if u == 'hr_mentor' %} active{% endif %}" href="{% url 'hr_mentor' %}"{% if u == 'hr_mentor' %} aria-current="page"{% endif %}>Вопросы наставнику</a>
+            {% if user.is_superuser %}<a class="nav-item" data-turbo="false" href="{% url 'admin:index' %}">Django-админка →</a>{% endif %}
         {% else %}
             <div class="nav-label">Мой онбординг</div>
-            <a class="nav-item{% if request.resolver_match.url_name == 'home' %} active{% endif %}" href="{% url 'home' %}">
+            <a class="nav-item{% if u == 'home' %} active{% endif %}" href="{% url 'home' %}"{% if u == 'home' %} aria-current="page"{% endif %}>
                 <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><path d="M3 12l9-9 9 9M5 10v10h14V10"/></svg>Сегодня
             </a>
-            <a class="nav-item" href="{% url 'home' %}#modules">
-                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><path d="M9 11l3 3L22 4M21 12v7a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11"/></svg>Мой путь
+            <a class="nav-item{% if u == 'path' %} active{% endif %}" href="{% url 'path' %}"{% if u == 'path' %} aria-current="page"{% endif %}>
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><path d="M9 11l3 3L22 4M21 12v7a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11"/></svg>Первые 90 дней
             </a>
-            <a class="nav-item" href="{% url 'home' %}#progress">
-                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><path d="M3 17l6-6 4 4 8-8M17 7h4v4"/></svg>Прогресс
+            <a class="nav-item{% if u == 'mentor' %} active{% endif %}" href="{% url 'mentor' %}"{% if u == 'mentor' %} aria-current="page"{% endif %}>
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"/></svg>Наставник
             </a>
-            <span class="nav-item nav-disabled" aria-disabled="true">Первые недели <span class="step-tag">Скоро</span></span>
+            {% url 'health_form' as health_form_url %}{% if health_form_url %}<a class="nav-item{% if u == 'health_form' %} active{% endif %}" href="{{ health_form_url }}"{% if u == 'health_form' %} aria-current="page"{% endif %}>
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><path d="M20 12h-4l-3 8-4-16-3 8H4"/></svg>Самочувствие
+            </a>{% endif %}
             <span class="nav-item nav-disabled" aria-disabled="true">Забота <span class="step-tag">Скоро</span></span>
             <span class="nav-item nav-disabled" aria-disabled="true">Контакты <span class="step-tag">Скоро</span></span>
         {% endif %}
@@ -42,11 +59,28 @@
                 <div class="avatar">{{ user.get_username|slice:':1'|upper }}</div>
                 <div class="user-info"><b>{% firstof user.get_full_name user.username %}</b><span>{% if user.is_superuser %}Администратор{% elif user_is_hr %}HR{% else %}Сотрудник{% endif %}</span></div>
             </div>
-            <form method="post" action="{% url 'logout' %}">{% csrf_token %}<button type="submit" class="nav-item logout-button">Выйти</button></form>
+            <div class="foot-actions">
+                <button type="button" class="font-toggle" id="font-toggle" aria-pressed="false" aria-label="Крупный шрифт" title="Крупный шрифт">Аа</button>
+                <form method="post" action="{% url 'logout' %}" data-turbo="false">{% csrf_token %}<button type="submit" class="nav-item logout-button">Выйти</button></form>
+            </div>
         </div>
     </aside>
-    <main class="main" id="main-content">{% block content %}{% endblock %}</main>
+    <main class="main" id="main-content" tabindex="-1">{% block content %}{% endblock %}</main>
 </div>
-<script src="{% static 'onboarding/js/app.js' %}" defer></script>
+<nav class="bottom-nav" aria-label="Основная навигация">
+{% if user.is_superuser or user_is_hr %}
+    <a href="{% url 'hr_dashboard' %}"{% if u == 'hr_dashboard' or u == 'hr_employee_detail' %} class="active" aria-current="page"{% endif %}><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M16 21v-2a4 4 0 0 0-4-4H6a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/></svg>Команда</a>
+    <a href="{% url 'hr_answers' %}"{% if u == 'hr_answers' %} class="active" aria-current="page"{% endif %}><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M4 20V10M10 20V4M16 20v-7M22 20H2"/></svg>Ответы</a>
+    {% url 'hr_health' as hr_health_url %}{% if hr_health_url %}<a href="{{ hr_health_url }}"{% if u == 'hr_health' %} class="active" aria-current="page"{% endif %}><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M20 12h-4l-3 8-4-16-3 8H4"/></svg>Самочувствие</a>{% endif %}
+    <a href="{% url 'hr_mentor' %}"{% if u == 'hr_mentor' or u == 'hr_path' %} class="active" aria-current="page"{% endif %}><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"/></svg>Вопросы</a>
+{% else %}
+    <a href="{% url 'home' %}"{% if u == 'home' %} class="active" aria-current="page"{% endif %}><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M4 11l8-7 8 7v9H4z"/></svg>Сегодня</a>
+    <a href="{% url 'path' %}"{% if u == 'path' %} class="active" aria-current="page"{% endif %}><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M9 11l3 3L22 4M21 12v7a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11"/></svg>90 дней</a>
+    <a href="{% url 'mentor' %}"{% if u == 'mentor' %} class="active" aria-current="page"{% endif %}><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"/></svg>Наставник</a>
+    {% if health_form_url %}<a href="{{ health_form_url }}"{% if u == 'health_form' %} class="active" aria-current="page"{% endif %}><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M20 12h-4l-3 8-4-16-3 8H4"/></svg>Самочувствие</a>{% endif %}
+{% endif %}
+</nav>
+{% endwith %}
+<script src="{% static 'onboarding/js/theme-tuner.js' %}" defer></script>
 </body>
 </html>

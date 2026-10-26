@@ -5,6 +5,7 @@ import dj_database_url
 from django.core.exceptions import ImproperlyConfigured
 from dotenv import load_dotenv
 
+AUTH_USER_MODEL = "users.User"
 
 BASE_DIR = Path(__file__).resolve().parent.parent
 
@@ -43,6 +44,9 @@ INSTALLED_APPS = [
     'django.contrib.staticfiles',
 
     "onboarding.apps.OnboardingConfig",
+    "health.apps.HealthConfig",
+    "users.apps.UsersConfig",
+    "journey.apps.JourneyConfig",
 ]
 
 MIDDLEWARE = [
