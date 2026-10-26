@@ -2,7 +2,7 @@ from django.core.paginator import Paginator
 from django.shortcuts import render
 from django.views.decorators.http import require_GET
 
-from onboarding.services.permissions_service import hr_required
+from onboarding.permissions import hr_required
 from onboarding.services.employee_services import get_employees_queryset, filtering_employees_words, get_employee, add_completion_date_each_module
 from onboarding.services.dashboard_services import calculate_general_statistics, calculate_progress_percentage, calculate_progress_percent
 from onboarding.services.module_services import get_published_modules, get_completion_dates_modules_employee, get_number_published_modules
