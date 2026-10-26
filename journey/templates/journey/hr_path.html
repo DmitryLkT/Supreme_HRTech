@@ -1,0 +1,24 @@
+{% extends "onboarding/base.html" %}
+{% block title %}Путь 30/60/90 — Altra{% endblock %}
+{% block content %}
+<div class="top"><div class="hello">
+    <div class="eyebrow">HR-кабинет</div>
+    <h1>Путь 30/60/90 дней</h1>
+    <p>Сколько сотрудников отметили каждый шаг. Шаги редактируются в Django-админке.</p>
+</div></div>
+{% if not rows %}
+<div class="empty-state"><h3>Шаги не добавлены</h3><p>Добавьте шаги в админке или выполните команду seed_path_steps для примера.</p></div>
+{% else %}
+<div class="card hr-table-card"><div class="hr-table-wrap">
+<table class="hr-table">
+    <caption class="sr-only">Выполнение шагов пути</caption>
+    <thead><tr><th scope="col">Период</th><th scope="col">Шаг</th><th scope="col">Выполнили</th><th scope="col">Доля</th></tr></thead>
+    <tbody>{% for r in rows %}<tr>
+        <td>{{ r.step.get_period_display }}</td>
+        <td>{{ r.step.title }}{% if r.step.is_placeholder %} <span class="step-tag">пример</span>{% endif %}</td>
+        <td>{{ r.done }} из {{ employees_total }}</td>
+        <td><div class="hr-progress"><progress max="100" value="{{ r.percent }}" aria-label="Выполнили {{ r.percent }} процентов">{{ r.percent }}%</progress><span>{{ r.percent }}%</span></div></td>
+    </tr>{% endfor %}</tbody>
+</table></div></div>
+{% endif %}
+{% endblock %}

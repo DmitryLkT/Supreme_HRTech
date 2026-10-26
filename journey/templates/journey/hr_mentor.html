@@ -1,0 +1,30 @@
+{% extends "onboarding/base.html" %}
+{% block title %}Вопросы наставнику — Altra{% endblock %}
+{% block content %}
+<div class="top"><div class="hello">
+    <div class="eyebrow">HR-кабинет</div>
+    <h1>Вопросы наставнику</h1>
+    <p>Без ответа: {{ open_count }}. Ответ появится у сотрудника на странице «Наставник».</p>
+</div></div>
+<nav class="tabs" aria-label="Фильтр вопросов">
+    <a class="tab{% if show == 'open' %} active{% endif %}" href="?show=open"{% if show == 'open' %} aria-current="page"{% endif %}>Без ответа</a>
+    <a class="tab{% if show == 'all' %} active{% endif %}" href="?show=all"{% if show == 'all' %} aria-current="page"{% endif %}>Все</a>
+</nav>
+{% for q in questions %}
+<article class="card mentor-q">
+    <div class="mentor-q-head"><b>{{ q.text }}</b><span class="badge{% if q.is_answered %} badge-now{% endif %}">{% if q.is_answered %}Отвечен{% else %}Ждёт ответа{% endif %}</span></div>
+    <p class="muted">{% firstof q.user.get_full_name q.user.username %} · {{ q.get_category_display }} · {{ q.created_at|date:"d.m.Y H:i" }}</p>
+    {% if q.is_answered %}
+        <div class="mentor-answer"><span class="card-label">Ответ{% if q.answered_by %} · {% firstof q.answered_by.get_full_name q.answered_by.username %}{% endif %}</span><p>{{ q.answer|linebreaksbr }}</p></div>
+    {% else %}
+        <form method="post" action="{% url 'hr_mentor_answer' question_id=q.id %}" class="mentor-reply">{% csrf_token %}
+            <label class="sr-only" for="reply-{{ q.id }}">Ответ сотруднику</label>
+            <textarea id="reply-{{ q.id }}" name="answer" rows="3" maxlength="{{ max_length }}" required placeholder="Ответ сотруднику"></textarea>
+            <button type="submit" class="btn btn-primary">Ответить</button>
+        </form>
+    {% endif %}
+</article>
+{% empty %}
+<div class="empty-state"><h3>{% if show == 'open' %}Все вопросы отвечены{% else %}Вопросов пока нет{% endif %}</h3><p>Новые вопросы сотрудников появятся здесь.</p></div>
+{% endfor %}
+{% endblock %}

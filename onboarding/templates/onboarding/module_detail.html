@@ -9,7 +9,7 @@
 <div class="section-title"><h3>Проверь себя</h3></div>
 <section class="questions" aria-label="Проверка знаний">
 {% for question in module.questions.all %}
-    <form method="post" action="{% url 'answer_question' question_id=question.id %}" class="question-form card" id="question-{{ question.id }}">
+    <form method="post" action="{% url 'answer_question' question_id=question.id %}" class="question-form card" data-turbo="false" id="question-{{ question.id }}">
         {% csrf_token %}
         <fieldset>
             <legend>{{ forloop.counter }}. {{ question.text }}</legend>

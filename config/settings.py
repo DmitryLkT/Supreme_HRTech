@@ -46,6 +46,7 @@ INSTALLED_APPS = [
     "onboarding.apps.OnboardingConfig",
     "health.apps.HealthConfig",
     "users.apps.UsersConfig",
+    "journey.apps.JourneyConfig",
 ]
 
 MIDDLEWARE = [

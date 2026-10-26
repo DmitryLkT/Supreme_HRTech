@@ -1,0 +1,33 @@
+/* Заставка при входе: видео с логотипом на чёрном фоне (#161616 совпадает с фоном видео) */
+.splash { display: none; }
+html.splash-on .splash {
+    display: grid; place-items: center;
+    position: fixed; inset: 0; z-index: 9999;
+    background: #161616;
+    /* страховка: если скрипт не загрузился, заставка сама исчезнет через 8 секунд */
+    animation: splash-auto-hide .5s ease 8s forwards;
+}
+.splash.splash-hide {
+    opacity: 0; visibility: hidden; pointer-events: none;
+    transition: opacity .5s ease, visibility 0s linear .5s;
+}
+.splash-video {
+    display: block; width: min(560px, 80vw); height: auto; max-height: 70vh; object-fit: contain;
+    background: #161616;
+    /* мягкие края: граница видео не заметна, даже если цвет фона чуть отличается */
+    -webkit-mask-image: linear-gradient(to right, transparent 0, #000 10%, #000 90%, transparent 100%),
+                        linear-gradient(to bottom, transparent 0, #000 14%, #000 86%, transparent 100%);
+    -webkit-mask-composite: source-in;
+    mask-image: linear-gradient(to right, transparent 0, #000 10%, #000 90%, transparent 100%),
+                linear-gradient(to bottom, transparent 0, #000 14%, #000 86%, transparent 100%);
+    mask-composite: intersect;
+}
+.splash-skip {
+    position: absolute; right: 24px; bottom: 24px;
+    padding: 8px 16px; font: inherit; font-size: 14px;
+    color: var(--ink-soft, #9A9C9E); background: transparent;
+    border: 1px solid var(--line, #2E2F32); border-radius: 999px; cursor: pointer;
+}
+.splash-skip:hover { color: var(--ink, #E8E9EB); border-color: var(--line-strong, #4A4C50); }
+
+@keyframes splash-auto-hide { to { opacity: 0; visibility: hidden; pointer-events: none; } }
