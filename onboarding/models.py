@@ -58,7 +58,7 @@ class Question(models.Model):
 class AnswerOption(models.Model):
     """Варианты ответа на вопрос"""
     question=models.ForeignKey(Question, on_delete=models.CASCADE, related_name="options", verbose_name="Вопрос")
-    text=models.TextField(max_length=300, verbose_name="Текст ответа")
+    text=models.TextField(verbose_name="Текст ответа")
     is_correct=models.BooleanField(default=False, verbose_name="Правильный ответ")
 
     class Meta:

@@ -5,7 +5,7 @@ from django.contrib.auth import get_user_model
 from django.utils import timezone
 
 from users.models import Department
-from ..models import Module, ModuleCompletion, Question
+from ..models import Module, ModuleCompletion, Question, AnswerOption
 
 class ModuleModelTest(TestCase):
     def test_module_created(self):
@@ -417,3 +417,98 @@ class QuestionModelTest(TestCase):
         )
 
         self.assertEqual(list(self.module.questions.all()), [question])
+
+class AnswerOptionModelTest(TestCase):
+
+    def setUp(self):
+        """Создание модуля и вопроса для тестов."""
+        self.module = Module.objects.create(
+            title="test",
+            description="test",
+        )
+
+        self.question = Question.objects.create(
+            module=self.module,
+            text="Как тебя зовут?",
+        )
+
+    def test_answer_option_created(self):
+        """Создание варианта ответа."""
+        option = AnswerOption.objects.create(
+            question=self.question,
+            text="Дмитрий",
+        )
+
+        self.assertIsNotNone(option.pk)
+
+    def test_default_is_correct(self):
+        """Значение is_correct по умолчанию."""
+        option = AnswerOption(
+            question=self.question,
+            text="Дмитрий",
+        )
+
+        self.assertEqual(option.is_correct, False)
+
+    def test_question_is_required(self):
+        """Обязательное поле question."""
+        option = AnswerOption(
+            text="Дмитрий",
+        )
+
+        with self.assertRaises(ValidationError) as context:
+            option.full_clean()
+
+        self.assertIn("question", context.exception.message_dict)
+
+    def test_text_is_required(self):
+        """Обязательное поле text."""
+        option = AnswerOption(
+            question=self.question,
+        )
+
+        with self.assertRaises(ValidationError) as context:
+            option.full_clean()
+
+        self.assertIn("text", context.exception.message_dict)
+
+    def test_str_returns_text(self):
+        """Строковое представление."""
+        option = AnswerOption(
+            question=self.question,
+            text="Дмитрий",
+        )
+
+        self.assertEqual(str(option), "Дмитрий")
+
+    def test_default_ordering(self):
+        """Сортировка вариантов ответа по id."""
+        option1 = AnswerOption.objects.create(
+            question=self.question,
+            text="Первый ответ",
+        )
+        option2 = AnswerOption.objects.create(
+            question=self.question,
+            text="Второй ответ",
+        )
+        option3 = AnswerOption.objects.create(
+            question=self.question,
+            text="Третий ответ",
+        )
+
+        options = [option1, option2, option3]
+        qs = list(AnswerOption.objects.all())
+
+        self.assertEqual(qs, options)
+
+    def test_related_name_options(self):
+        """Получение вариантов ответа через related_name."""
+        option = AnswerOption.objects.create(
+            question=self.question,
+            text="Дмитрий",
+        )
+
+        self.assertEqual(
+            list(self.question.options.all()),
+            [option],
+        )
