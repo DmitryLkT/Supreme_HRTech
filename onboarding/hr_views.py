@@ -1,124 +1,92 @@
-from django.contrib.auth import get_user_model
 from django.core.paginator import Paginator
-from django.db.models import Count, Max, Q
-from django.shortcuts import get_object_or_404, render
+from django.shortcuts import render
 from django.views.decorators.http import require_GET
 
-from .models import AnswerSubmission, Module, ModuleCompletion
-from .permissions import hr_required
-
-
-def employees_queryset():
-    return get_user_model().objects.filter(
-        is_active=True, is_superuser=False, is_staff=False,
-    ).exclude(groups__name="HR")
-
+from onboarding.permissions import hr_required
+from onboarding.services.employee_services import get_employees_queryset, filtering_employees_words, get_employee, add_completion_date_each_module, employees_queryset
+from onboarding.services.dashboard_services import calculate_general_statistics, calculate_progress_percentage, calculate_progress_percent, calculate_answers_statistics
+from onboarding.services.module_services import get_published_modules, get_completion_dates_modules_employee, get_number_published_modules, get_published_modules_with_questions, get_selected_module
+from onboarding.services.progress_services import get_last_answer_progress, get_answers_count_by_options
 
 @hr_required
 @require_GET
 def hr_dashboard(request):
-    total_modules = Module.objects.filter(is_published=True).count()
-    published = Q(modulecompletion__module__is_published=True)
-    employees = employees_queryset().annotate(
-        completed_count=Count("modulecompletion__module_id", filter=published, distinct=True),
-        last_completed_at=Max("modulecompletion__completed_at", filter=published),
-    )
-    employee_count = employees.count()
-    finished_count = employees.filter(completed_count=total_modules).count() if total_modules else 0
-    in_progress_count = employees.filter(
-        completed_count__gt=0, completed_count__lt=total_modules,
-    ).count()
+    """Формирует HR-панель управления обучениея сотрудников"""
+    total_modules = get_number_published_modules()
+
+    employees = get_employees_queryset()
+
+    employee_context = calculate_general_statistics(employees=employees, total_modules=total_modules)
 
     query = request.GET.get("q", "").strip()[:100]
     if query:
-        for word in query.split():
-            employees = employees.filter(
-                Q(username__icontains=word) | Q(first_name__icontains=word)
-                | Q(last_name__icontains=word)
-            )
-    page = Paginator(employees.order_by("last_name", "first_name", "username", "id"), 20).get_page(request.GET.get("page"))
-    for employee in page.object_list:
-        employee.progress_percent = round(employee.completed_count / total_modules * 100) if total_modules else 0
+        employees = filtering_employees_words(query=query, employees=employees)
+
+    page = Paginator(
+        employees.order_by("last_name", "first_name", "username", "id"),
+        20
+        ).get_page(request.GET.get("page"))
+
+    calculate_progress_percentage(page=page, total_modules=total_modules)
 
     return render(request, "onboarding/hr_dashboard.html", {
         "page_obj": page, "query": query,
         "total_modules": total_modules,
-        "employee_count": employee_count,
-        "finished_count": finished_count,
-        "in_progress_count": in_progress_count,
-        "not_started_count": employee_count - finished_count - in_progress_count,
+        "employees_count": employee_context["employees_count"],
+        "finished_count": employee_context["finished_count"],
+        "in_progress_count": employee_context["in_progress_count"],
+        "not_started_count": employee_context["not_started_count"]
     })
 
 
 @hr_required
 @require_GET
 def hr_employee_detail(request, user_id):
-    employee = get_object_or_404(employees_queryset(), pk=user_id)
-    modules = list(Module.objects.filter(is_published=True))
-    completions = {
-        item.module_id: item.completed_at
-        for item in ModuleCompletion.objects.filter(user=employee, module__is_published=True)
-    }
-    for module in modules:
-        module.employee_completed_at = completions.get(module.id)
+    """Формирует страницу HR с подробной информацией об обучении конкретного сотрудника"""
+    employee = get_employee(user_id)
+
+    modules = get_published_modules()
+
+    completions = get_completion_dates_modules_employee(employee)
+
+    add_completion_date_each_module(modules=modules, completions=completions)
+
     total_modules = len(modules)
     completed_count = len(completions)
-    submissions = AnswerSubmission.objects.filter(
-        user=employee, question__module__is_published=True,
-    )
+
+    submissions = get_last_answer_progress(employee)
     scored = submissions.exclude(is_correct__isnull=True)
+
+    progress_percent = calculate_progress_percent(completed_count=completed_count, total_modules=total_modules)
+
     return render(request, "onboarding/hr_employee_detail.html", {
-        "employee": employee, "modules": modules,
+        "employee": employee,
         "answers_total": submissions.count(),
         "scored_total": scored.count(),
         "scored_correct": scored.filter(is_correct=True).count(),
-        "completed_count": completed_count, "total_modules": total_modules,
-        "progress_percent": round(completed_count / total_modules * 100) if total_modules else 0,
+        "modules": modules,
+        "completed_count": completed_count,
+        "total_modules": total_modules,
+        "progress_percent": progress_percent
     })
-
 
 @hr_required
 @require_GET
 def hr_answers(request):
     """Сводка ответов на вопросы модулей. Только агрегаты, без имён."""
-    modules = list(Module.objects.filter(is_published=True))
-    selected = None
-    raw = request.GET.get("module", "")
-    if raw.isdecimal():
-        selected = next((m for m in modules if m.id == int(raw)), None)
+    modules = get_published_modules_with_questions
 
-    employee_ids = employees_queryset().values("id")
-    counts = {
-        row["option_id"]: row["n"]
-        for row in AnswerSubmission.objects
-        .filter(user_id__in=employee_ids, question__module__is_published=True)
-        .values("option_id").annotate(n=Count("id"))
-    }
+    selected = get_selected_module(modules=modules, raw=request.GET.get("module", ""))
 
-    blocks = []
-    for module in (modules if selected is None else [selected]):
-        questions = []
-        for question in module.questions.prefetch_related("options"):
-            options = list(question.options.all())
-            total = sum(counts.get(o.id, 0) for o in options)
-            scored = question.is_scored
-            rows = []
-            for option in options:
-                n = counts.get(option.id, 0)
-                rows.append({
-                    "text": option.text, "count": n,
-                    "percent": round(n / total * 100) if total else 0,
-                    "is_correct": option.is_correct if scored else None,
-                })
-            correct_n = sum(r["count"] for r in rows if r["is_correct"])
-            questions.append({
-                "text": question.text, "scored": scored, "total": total,
-                "rows": rows,
-                "correct_percent": round(correct_n / total * 100) if scored and total else None,
-            })
-        blocks.append({"module": module, "questions": questions})
+    counts = get_answers_count_by_options(module=selected)
+
+    modules_for_statistics = [selected] if selected is not None else modules
+
+    blocks = calculate_answers_statistics(modules=modules_for_statistics, counts=counts)
 
     return render(request, "onboarding/hr_answers.html", {
-        "modules": modules, "selected": selected, "blocks": blocks,
+        "modules": modules,
+        "selected": selected,
+        "blocks": blocks,
         "employees_total": employees_queryset().count(),
     })
