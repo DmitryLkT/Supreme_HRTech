@@ -1,15 +1,15 @@
-from datetime import timedelta
-
 from django.contrib.auth.decorators import login_required
 from django.http import Http404
-from django.shortcuts import render, get_object_or_404
+from django.shortcuts import render
 from django.core.exceptions import ValidationError
 from django.shortcuts import redirect
 from django.utils import timezone
 
 from health.services.submissions import create_submission
 from health.services.periods import get_week_start
-from health.services.reports import get_report_participation, get_question_report, get_weekly_question_report
+from health.services.reports import get_report_participation, get_question_report, get_weekly_question_report, build_weekly_series
+from health.services.questionnaires import get_questionnaire_version, is_already_submitted, build_questions, extract_answers, get_actual_questionnaire_version_id
+
 from .models import QuestionnaireVersion, Submission
 from .decorators import hr_required
 from .froms import HRReportFilterForm
@@ -17,120 +17,62 @@ from .froms import HRReportFilterForm
 @login_required
 def questionnaire_detail(request, version_id):
     """Открывает конкретную версию анкеты"""
-    version = get_object_or_404(
-        QuestionnaireVersion.objects.select_related("questionnaire"),
-        pk=version_id,
-        questionnaire__is_published=True
-    )
-
+    version = get_questionnaire_version(version_id)
+    questionnaire = version.questionnaire
     week_start = get_week_start(timezone.localdate())
 
-    already_submitted = Submission.objects.filter(
-        employee=request.user,
-        questionnaire=version.questionnaire,
-        week_start=week_start,
-    ).exists()
+    if is_already_submitted(user=request.user, questionnaire=questionnaire, week_start=week_start):
+        return render(request, "health/questionnaire_detail.html", {
+            "version": version, "questionnaire": questionnaire,
+            "state": "done", "week_start": week_start,
+        })
 
-    if already_submitted:
-        return render(
-            request,
-            "health/questionnaire_detail.html",
-            {
-                "version": version,
-                "questionnaire": version.questionnaire,
-                "state": "done",
-                "week_start": week_start,
-            },
-        )
-
-    questions = []
-
-    for category in version.definition["categories"]:
-        for question in category["questions"]:
-            questions.append({
-                "id": question["code"],
-                "text": question["text"],
-                "is_required": True,
-                "selected_id": None,
-                "options": [
-                    {
-                        "id": option["value"],
-                        "text": option["label"]
-                    }
-                    for option in question["answers"]
-                ]
-            })
+    questions = build_questions(version=version)
 
     form_error = None
-
     if request.method == "POST":
-        answers = {}
+        answers, form_error = extract_answers(request=request, questions=questions)
+        if form_error is None:
+            try:
+                create_submission(
+                    employee=request.user,
+                    department=request.user.department,
+                    version=version,
+                    answers=answers,
+                )
+            except ValidationError as error:
+                form_error = " ".join(error.messages)
+            else:
+                return redirect(request.path)
 
-        try:
-            for question in questions:
-                field_name = "q_" + question["id"]
-                raw_value = request.POST.get(field_name)
-
-                if raw_value is None:
-                    continue
-
-                value = int(raw_value)
-                answers[question["id"]] = value
-                question["selected_id"] = value
-
-            create_submission(
-                employee=request.user,
-                department=request.user.department,
-                version=version,
-                answers=answers,
-            )
-
-        except ValueError:
-            form_error = "Некорректный ответ. Выберите вариант из списка."
-
-        except ValidationError as error:
-            form_error = " ".join(error.messages)
-
-        else:
-            return redirect(request.path)
-
-    return render(
-        request,
-        "health/questionnaire_detail.html",
-        {
-            "version": version,
-            "questionnaire": version.questionnaire,
-            "questions": questions,
-            "state": "form",
-            "form_error": form_error,
-        }
-    )
+    return render(request, "health/questionnaire_detail.html", {
+        "version": version,
+        "questionnaire": questionnaire,
+        "questions": questions,
+        "state": "form",
+        "form_error": form_error,
+    })
 
 @login_required
 def health_entry(request):
     """Открывает актуальную версию опубликованной анкеты."""
-    version = (
-        QuestionnaireVersion.objects
-        .select_related("questionnaire")
-        .filter(questionnaire__is_published=True)
-        .order_by("-questionnaire_id", "-created_at")
-        .first()
-    )
+    version_id = get_actual_questionnaire_version_id
 
-    if version is None:
+    if version_id is None:
         raise Http404("Опубликованных анкет нет")
 
-    return questionnaire_detail(request, version_id=version.pk)
+    return questionnaire_detail(request, version_id=version_id)
 
 @hr_required
 def hr_report(request):
+    """Формирует HR-отчёт по анкетам за период с фильтрами"""
     form = HRReportFilterForm()
     state = "initial"
     participation = None
     question_report = None
     weekly_report = None
-    series = {}
     weeks = []
+    series = {}
 
     if request.GET.get("period_start") is not None:
         form = HRReportFilterForm(request.GET)
@@ -140,59 +82,46 @@ def hr_report(request):
             questionnaire = form.cleaned_data["questionnaire"]
             period_start = form.cleaned_data["period_start"]
             period_end = form.cleaned_data["period_end"]
-            department =  form.cleaned_data["department"]
-            if department == "":
-                department = None
+            department = form.cleaned_data["department"] or None   # "" → None
 
             participation = get_report_participation(
                 questionnaire=questionnaire,
                 period_start=period_start,
                 period_end=period_end,
-                department=department)
+                department=department,
+            )
 
             if participation["participant_count"] == 0:
                 state = "empty"
-            elif participation["is_available"] is False:
+            elif not participation["is_available"]:
                 state = "insufficient"
             else:
                 question_report = get_question_report(
                     questionnaire=questionnaire,
                     period_start=period_start,
                     period_end=period_end,
-                    department=department)
-
+                    department=department,
+                    participation=participation,        # не считаем дважды
+                )
                 weekly_report = get_weekly_question_report(
                     questionnaire=questionnaire,
                     period_start=period_start,
                     period_end=period_end,
-                    department=department)
-
-                current_week = get_week_start(period_start)
-                last_week = get_week_start(period_end)
-                while current_week <= last_week:
-                    weeks.append(current_week)
-                    current_week += timedelta(weeks=1)
-
-                question_codes = weekly_report["question_codes"]
-
-                for question_code in question_codes:
-                    series[question_code] = [None] * len(weeks)
-
-                for point in weekly_report["points"]:
-                    week_index = weeks.index(point["week_start"])
-                    series[point["question_code"]][week_index] = point["average_value"]
+                    department=department,
+                )
+                weeks, series = build_weekly_series(
+                    weekly_report=weekly_report,
+                    period_start=period_start,
+                    period_end=period_end,
+                )
         else:
             state = "invalid"
 
-    return render(request,
-                  "health/hr_report.html",
-                  {
-                      "form": form,
-                      "state": state,
-                      "participation": participation,
-                      "question_report": question_report,
-                      "weekly_report": weekly_report,
-                      "weeks": weeks,
-                      "series": series
-                  })
+    return render(request, "health/hr_report.html", {
+        "form": form, "state": state,
+        "participation": participation,
+        "question_report": question_report,
+        "weekly_report": weekly_report,
+        "weeks": weeks, "series": series,
+    })
 

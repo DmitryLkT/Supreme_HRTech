@@ -7,7 +7,7 @@ from django.core.exceptions import PermissionDenied
 from onboarding.permissions import employee_required, is_hr
 from onboarding.services.module_services import get_module_detail, get_module
 from onboarding.services.progress_services import get_user_module_progress
-from onboarding.services.question_service import get_question, get_answer_option_question, validate_answer_option_id, check_answer
+from onboarding.services.question_service import get_question, get_answer_option_question, validate_answer_option_id, check_answer, save_answer_submission
 
 @login_required
 def home(request):
@@ -39,27 +39,32 @@ def complete_module(request, module_id):
 def answer_question(request, question_id):
     """Обрабатывает ответ сотрудника на вопрос"""
     question = get_question(question_id)
-    option_id = request.POST.get("option_id")
     is_ajax = request.headers.get("X-Requested-With") == "XMLHttpRequest"
+    option_id = request.POST.get("option_id")
 
     error = validate_answer_option_id(option_id)
-
     if error:
         if is_ajax:
-            return JsonResponse({"error": error, "is_ajax": is_ajax})
+            return JsonResponse({"error": error, "message": error}, status=400)
         return render(request, "onboarding/question_result.html",
-                      {
-                          "question": question,
-                          "error": error
-                      }, status=400)
+                      {"question": question, "error": error}, status=400)
 
     selected_option = get_answer_option_question(question=question, option_id=option_id)
 
     context = check_answer(question=question, selected_option=selected_option)
+
+    save_answer_submission(
+        user=request.user,
+        question=question,
+        selected_option=selected_option,
+        is_correct=context["is_correct"],
+    )
+
     if is_ajax:
         return JsonResponse({
             "is_correct": context["is_correct"],
-            "message": context["message"]
+            "scored": context["scored"],
+            "message": context["message"],
         })
 
     return render(request, "onboarding/question_result.html", context)

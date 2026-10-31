@@ -1,0 +1,10 @@
+{% load static %}
+<div class="splash" id="splash" role="status" aria-label="Загрузка">
+    <video class="splash-video" muted playsinline preload="auto" aria-hidden="true"
+           poster="{% static 'onboarding/video/splash-poster.jpg' %}">
+        <source src="{% static 'onboarding/video/splash.mp4' %}" type="video/mp4">
+    </video>
+    <button type="button" class="splash-skip" id="splash-skip">Пропустить</button>
+    <span class="sr-only">Загрузка…</span>
+</div>
+<script src="{% static 'onboarding/js/splash.js' %}" defer></script>

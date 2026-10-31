@@ -1,0 +1,13 @@
+{% load static %}
+<script>
+/* Заставка показывается один раз за сессию браузера. Принудительно: добавьте ?splash к адресу. */
+(function () {
+  try {
+    var force = /[?&]splash\b/.test(location.search);
+    if (force || !sessionStorage.getItem('altra-splash')) {
+      document.documentElement.classList.add('splash-on');
+    }
+  } catch (e) {}
+})();
+</script>
+<link rel="stylesheet" href="{% static 'onboarding/css/splash.css' %}">

@@ -27,6 +27,10 @@ def get_published_modules():
     """Получает все опубликованные учебные модули и преобразует в обычный список."""
     return list(Module.objects.filter(is_published=True))
 
+def get_published_modules_with_questions():
+    """Опубликованные модули с предзагруженными вопросами и вариантами ответов."""
+    return list(Module.objects.filter(is_published=True).prefetch_related("questions__options"))
+
 def get_number_published_modules():
     """Определяет, сколько модулей обучения опубликовано и учитывается при расчёте прогресса"""
     return Module.objects.filter(is_published=True).count()
@@ -37,3 +41,10 @@ def get_completion_dates_modules_employee(employee):
         item.module_id: item.completed_at
         for item in ModuleCompletion.objects.filter(user=employee, module__is_published=True)
     }
+
+def get_selected_module(*, modules, raw) -> Module | None:
+    """Возвращает модуль, выбранный в GET-параметре, либо None."""
+    if raw.isdecimal():
+        module_id = int(raw)
+        return next((m for m in modules if m.id == module_id), None)
+    return None

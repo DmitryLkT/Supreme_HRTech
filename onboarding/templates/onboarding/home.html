@@ -23,7 +23,8 @@
         <h2>Все модули пройдены 🎉</h2><p>Ты можешь вернуться к любому материалу и повторить его.</p>
         <a class="btn btn-ghost" href="#modules">Повторить материалы</a>
     {% else %}
-        <h2>Материалы скоро появятся</h2><p>В твой маршрут пока не добавлены опубликованные модули.</p>
+        <h2>Материалы скоро появятся</h2><p>В твой маршрут пока не добавлены опубликованные модули. Пока можно посмотреть план первых 90 дней или задать вопрос наставнику.</p>
+        <div class="hero-actions"><a class="btn btn-primary" href="{% url 'path' %}">Первые 90 дней</a><a class="btn btn-ghost" href="{% url 'mentor' %}">Спросить наставника</a></div>
     {% endif %}
 </div>
 <div class="section-title" id="modules"><h3>Твой маршрут</h3><a href="#progress">Посмотреть прогресс →</a></div>
@@ -39,7 +40,7 @@
             </div>
             <a class="step-cta" href="{% url 'module_detail' module_id=module.id %}">{% if module.id in completed_module_ids %}Повторить{% else %}Открыть{% endif %}</a>
         </article>
-    {% empty %}<div class="card"><p>Пока нет опубликованных модулей.</p></div>{% endfor %}
+    {% empty %}<div class="empty-state"><h3>Модулей пока нет</h3><p>Когда HR опубликует материалы, они появятся здесь по порядку.</p></div>{% endfor %}
 </div>
 <div class="section-title" id="progress"><h3>Твой прогресс</h3></div>
 <div class="progress-grid">
@@ -53,8 +54,10 @@
             <div><p class="card-value">{{ completed_count }} из {{ total_modules }}</p><p class="card-sub">Модулей завершено. Продолжай в своём темпе.</p></div>
         </div>
     </section>
-    <section class="card"><div class="card-label">Треки обучения</div><p class="card-value">Скоро</p><p class="card-sub">Раздел появится после добавления треков. Сейчас прогресс считается по модулям.</p></section>
+    <section class="card"><div class="card-label">Первые 90 дней</div><p class="card-value">Твой план</p><p class="card-sub">Что от тебя ждут в каждый период.</p><a class="btn btn-ghost" href="{% url 'path' %}">Открыть план</a></section>
 </div>
+{% url 'health_form' as health_form_url %}{% if health_form_url %}
 <div class="section-title"><h3>Как ты сегодня?</h3></div>
-<section class="pulse"><h4>Пульс недели — скоро</h4><p>Эта функция пока не подключена. Ответы о самочувствии здесь ещё не собираются.</p></section>
+<section class="pulse"><h4>Анкета самочувствия</h4><p>Несколько коротких вопросов раз в неделю. Это помогает вовремя заметить, где нужна поддержка.</p><a class="btn btn-ghost" href="{{ health_form_url }}">Заполнить</a></section>
+{% endif %}
 {% endblock %}
