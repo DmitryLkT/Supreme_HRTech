@@ -3,11 +3,15 @@
 <html lang="ru">
 <head>
     <meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1">
-    <title>Вход — Altra</title><link rel="stylesheet" href="{% static 'onboarding/css/app.css' %}">
+    <title>Вход — Altra</title><link rel="preconnect" href="https://fonts.googleapis.com">
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="{% static 'onboarding/css/app.css' %}">
+    {% include "onboarding/_splash_head.html" %}
 </head>
 <body class="login-page">
+{% include "onboarding/_splash.html" %}
 <main class="login-card card">
-    <div class="brand"><div class="brand-mark">A</div><div class="brand-name">Altra</div></div>
+    <div class="brand"><span class="brand-logo" style="width:150px"><img class="logo-anim" src="{% static 'onboarding/img/altra-logo-anim.webp' %}" alt="Altra" width="150" height="67"><img class="logo-still" style="display:none" src="{% static 'onboarding/img/altra-logo.png' %}" alt="" aria-hidden="true" width="150" height="67"></span></div>
     <h1>Рады видеть тебя</h1><p class="muted">Войди, чтобы открыть материалы адаптации.</p>
     <form method="post" class="login-form">
         {% csrf_token %}{{ form.as_p }}
@@ -15,5 +19,6 @@
         <button type="submit" class="btn btn-primary">Войти →</button>
     </form>
 </main>
+<script src="{% static 'onboarding/js/theme-tuner.js' %}" defer></script>
 </body>
 </html>

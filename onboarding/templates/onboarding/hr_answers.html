@@ -1,10 +1,37 @@
-<!DOCTYPE html>
-<html lang="en">
-<head>
-    <meta charset="UTF-8">
-    <title>Title</title>
-</head>
-<body>
-
-</body>
-</html>
+{% extends "onboarding/base.html" %}
+{% block title %}Ответы на вопросы модулей — Altra{% endblock %}
+{% block content %}
+<div class="top"><div class="hello">
+    <div class="eyebrow">HR-кабинет</div>
+    <h1>Ответы на вопросы модулей</h1>
+    <p>Сводка по всем сотрудникам. Имена не показываются: это общая картина, а не оценка человека.</p>
+</div></div>
+<form method="get" class="health-week">
+    <label for="answers-module">Модуль</label>
+    <select id="answers-module" name="module" onchange="this.form.requestSubmit()">
+        <option value="">Все модули</option>
+        {% for m in modules %}<option value="{{ m.id }}"{% if selected and selected.id == m.id %} selected{% endif %}>{{ m.title }}</option>{% endfor %}
+    </select>
+    <noscript><button class="btn btn-ghost" type="submit">Показать</button></noscript>
+</form>
+{% for block in blocks %}
+<div class="section-title"><h3>{{ block.module.title }}</h3></div>
+{% for q in block.questions %}
+<section class="card answer-stat">
+    <h2>{{ q.text }}</h2>
+    <p class="muted">{% if q.scored %}Есть правильный ответ{% if q.correct_percent is not None %} · верно ответили {{ q.correct_percent }}%{% endif %}{% else %}Вопрос о ценностях и поведении: правильного ответа нет{% endif %} · ответов: {{ q.total }}</p>
+    <ul class="bar-list">
+    {% for r in q.rows %}
+        <li>
+            <div class="bar-head"><span>{{ r.text }}{% if r.is_correct %} <span class="step-tag">верный</span>{% endif %}</span><b>{{ r.count }} · {{ r.percent }}%</b></div>
+            <div class="bar-track" aria-hidden="true"><div class="bar-fill" style="width:{{ r.percent }}%"></div></div>
+        </li>
+    {% endfor %}
+    </ul>
+</section>
+{% empty %}<div class="empty-state"><h3>В этом модуле нет вопросов</h3><p>Добавьте вопросы в админке, и здесь появится сводка.</p></div>{% endfor %}
+{% empty %}
+<div class="empty-state"><h3>Нет опубликованных модулей</h3><p>Опубликуйте модуль в админке.</p></div>
+{% endfor %}
+<p class="hr-note muted">Учитывается последний ответ каждого сотрудника на вопрос. Сотрудников в команде: {{ employees_total }}.</p>
+{% endblock %}

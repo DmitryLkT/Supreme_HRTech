@@ -1,6 +1,6 @@
 from django.contrib import admin
 
-from .models import Module, AnswerOption, Question, AnswerSubmission
+from .models import AnswerSubmission, Module, AnswerOption, Question
 
 @admin.register(Module)
 class ModuleAdmin(admin.ModelAdmin):

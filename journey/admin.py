@@ -2,6 +2,7 @@ from django.contrib import admin
 
 from .models import MentorQuestion, PathProgress, PathStep
 
+
 @admin.register(PathStep)
 class PathStepAdmin(admin.ModelAdmin):
     list_display = ["title", "period", "order", "is_published", "is_placeholder"]
