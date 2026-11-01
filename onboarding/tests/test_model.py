@@ -5,7 +5,7 @@ from django.contrib.auth import get_user_model
 from django.utils import timezone
 
 from users.models import Department
-from ..models import Module, ModuleCompletion, Question, AnswerOption
+from ..models import Module, ModuleCompletion, Question, AnswerOption, AnswerSubmission
 
 class ModuleModelTest(TestCase):
     def test_module_created(self):
@@ -512,3 +512,253 @@ class AnswerOptionModelTest(TestCase):
             list(self.question.options.all()),
             [option],
         )
+
+class QuestionIsScoredTest(TestCase):
+    """Тестируем свойство Question.is_scored — логика «оценивается ли вопрос»"""
+
+    def setUp(self):
+        self.module = Module.objects.create(title="test", description="test")
+        self.question = Question.objects.create(module=self.module, text="test?")
+
+    def make_option(self, is_correct):
+        return AnswerOption.objects.create(
+            question=self.question, text="opt", is_correct=is_correct,
+        )
+
+    def test_no_options_is_not_scored(self):
+        """Вопрос без вариантов ответа не оценивается"""
+        self.assertFalse(self.question.is_scored)
+
+    def test_only_correct_options_is_not_scored(self):
+        """Все варианты верные — вопрос «на ценности», не оценивается"""
+        self.make_option(is_correct=True)
+        self.make_option(is_correct=True)
+
+        self.assertFalse(self.question.is_scored)
+
+    def test_only_incorrect_options_is_not_scored(self):
+        """Ни одного верного варианта — не оценивается"""
+        self.make_option(is_correct=False)
+        self.make_option(is_correct=False)
+
+        self.assertFalse(self.question.is_scored)
+
+    def test_mixed_options_is_scored(self):
+        """Есть и верные, и неверные — вопрос оценивается"""
+        self.make_option(is_correct=True)
+        self.make_option(is_correct=False)
+
+        self.assertTrue(self.question.is_scored)
+
+    def test_single_correct_option_only_is_not_scored(self):
+        """Единственный верный вариант без неверных — не оценивается"""
+        self.make_option(is_correct=True)
+
+        self.assertFalse(self.question.is_scored)
+
+class AnswerSubmissionModelTest(TestCase):
+    def setUp(self):
+        """Создание пользователя, модуля, вопроса и вариантов для тестов."""
+        self.department = Department.objects.create(name="test")
+        self.user = User.objects.create_user(
+            username="testuser",
+            password="testpassword123",
+            department=self.department,
+        )
+        self.module = Module.objects.create(title="test", description="test")
+        self.question = Question.objects.create(module=self.module, text="Как тебя зовут?")
+        self.option1 = AnswerOption.objects.create(
+            question=self.question, text="Дмитрий", is_correct=True,
+        )
+        self.option2 = AnswerOption.objects.create(
+            question=self.question, text="Не Дмитрий", is_correct=False,
+        )
+
+    def test_submission_created(self):
+        """Создание ответа."""
+        submission = AnswerSubmission.objects.create(
+            user=self.user, question=self.question, option=self.option1, is_correct=True,
+        )
+
+        self.assertIsNotNone(submission.pk)
+
+    def test_default_attempts(self):
+        """Значение attempts по умолчанию."""
+        submission = AnswerSubmission(
+            user=self.user, question=self.question, option=self.option1,
+        )
+
+        self.assertEqual(submission.attempts, 1)
+
+    def test_first_answered_at_is_set_automatically(self):
+        """Автоматическое заполнение даты первого ответа (auto_now_add)."""
+        before = timezone.now()
+        submission = AnswerSubmission.objects.create(
+            user=self.user, question=self.question, option=self.option1,
+        )
+        after = timezone.now()
+
+        self.assertIsNotNone(submission.first_answered_at)
+        self.assertGreaterEqual(submission.first_answered_at, before)
+        self.assertLessEqual(submission.first_answered_at, after)
+
+    def test_updated_at_is_set_automatically(self):
+        """Автоматическое заполнение даты последнего ответа (auto_now)."""
+        submission = AnswerSubmission.objects.create(
+            user=self.user, question=self.question, option=self.option1,
+        )
+
+        self.assertIsNotNone(submission.updated_at)
+
+    def test_updated_at_changes_on_save(self):
+        """auto_now: updated_at обновляется при повторном сохранении"""
+        submission = AnswerSubmission.objects.create(
+            user=self.user, question=self.question, option=self.option1,
+        )
+        original_updated_at = submission.updated_at
+
+        submission.option = self.option2
+        submission.save()
+        submission.refresh_from_db()
+
+        self.assertGreater(submission.updated_at, original_updated_at)
+
+    def test_first_answered_at_does_not_change_on_save(self):
+        """auto_now_add: первая дата остаётся неизменной при повторном сохранении"""
+        submission = AnswerSubmission.objects.create(
+            user=self.user, question=self.question, option=self.option1,
+        )
+        original_first_answered_at = submission.first_answered_at
+
+        submission.option = self.option2
+        submission.save()
+        submission.refresh_from_db()
+
+        self.assertEqual(submission.first_answered_at, original_first_answered_at)
+
+    def test_user_is_required(self):
+        """Обязательное поле user."""
+        submission = AnswerSubmission(question=self.question, option=self.option1)
+
+        with self.assertRaises(ValidationError) as context:
+            submission.full_clean()
+
+        self.assertIn("user", context.exception.message_dict)
+
+    def test_question_is_required(self):
+        """Обязательное поле question."""
+        submission = AnswerSubmission(user=self.user, option=self.option1)
+
+        with self.assertRaises(ValidationError) as context:
+            submission.full_clean()
+
+        self.assertIn("question", context.exception.message_dict)
+
+    def test_option_is_required(self):
+        """Обязательное поле option."""
+        submission = AnswerSubmission(user=self.user, question=self.question)
+
+        with self.assertRaises(ValidationError) as context:
+            submission.full_clean()
+
+        self.assertIn("option", context.exception.message_dict)
+
+    def test_is_correct_can_be_null(self):
+        """is_correct nullable — для вопросов без правильного ответа"""
+        submission = AnswerSubmission(
+            user=self.user, question=self.question, option=self.option1, is_correct=None,
+        )
+
+        submission.full_clean()  # не должно падать
+
+    def test_user_question_combination_must_be_unique(self):
+        """Повторный ответ на тот же вопрос тем же сотрудником запрещён на уровне БД"""
+        AnswerSubmission.objects.create(
+            user=self.user, question=self.question, option=self.option1,
+        )
+
+        with self.assertRaises(IntegrityError):
+            with transaction.atomic():
+                AnswerSubmission.objects.create(
+                    user=self.user, question=self.question, option=self.option2,
+                )
+
+    def test_same_question_can_be_answered_by_different_users(self):
+        """Разные сотрудники могут ответить на один вопрос."""
+        another_user = User.objects.create_user(
+            username="anotheruser",
+            password="testpassword123",
+            department=self.department,
+        )
+
+        AnswerSubmission.objects.create(
+            user=self.user, question=self.question, option=self.option1,
+        )
+        submission = AnswerSubmission.objects.create(
+            user=another_user, question=self.question, option=self.option2,
+        )
+
+        self.assertIsNotNone(submission.pk)
+
+    def test_same_user_can_answer_different_questions(self):
+        """Один сотрудник может отвечать на разные вопросы."""
+        another_question = Question.objects.create(module=self.module, text="Сколько тебе лет?")
+        another_option = AnswerOption.objects.create(
+            question=another_question, text="Много",
+        )
+
+        AnswerSubmission.objects.create(
+            user=self.user, question=self.question, option=self.option1,
+        )
+        submission = AnswerSubmission.objects.create(
+            user=self.user, question=another_question, option=another_option,
+        )
+
+        self.assertIsNotNone(submission.pk)
+
+    def test_cascade_delete_user(self):
+        """Удаление сотрудника удаляет его ответы"""
+        AnswerSubmission.objects.create(
+            user=self.user, question=self.question, option=self.option1,
+        )
+
+        self.user.delete()
+
+        self.assertEqual(AnswerSubmission.objects.count(), 0)
+
+    def test_cascade_delete_question(self):
+        """Удаление вопроса удаляет ответы на него"""
+        AnswerSubmission.objects.create(
+            user=self.user, question=self.question, option=self.option1,
+        )
+
+        self.question.delete()
+
+        self.assertEqual(AnswerSubmission.objects.count(), 0)
+
+    def test_cascade_delete_option(self):
+        """Удаление варианта удаляет ответы, где он был выбран"""
+        AnswerSubmission.objects.create(
+            user=self.user, question=self.question, option=self.option1,
+        )
+
+        self.option1.delete()
+
+        self.assertEqual(AnswerSubmission.objects.count(), 0)
+
+    def test_str_returns_user_and_question(self):
+        """Строковое представление."""
+        submission = AnswerSubmission.objects.create(
+            user=self.user, question=self.question, option=self.option1,
+        )
+
+        self.assertEqual(str(submission), f"{self.user} - {self.question}")
+
+    def test_related_name_submissions(self):
+        """Доступ к ответам через related_name — и у вопроса, и у варианта."""
+        submission = AnswerSubmission.objects.create(
+            user=self.user, question=self.question, option=self.option1,
+        )
+
+        self.assertEqual(list(self.question.submissions.all()), [submission])
+        self.assertEqual(list(self.option1.submissions.all()), [submission])
