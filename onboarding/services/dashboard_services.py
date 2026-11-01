@@ -34,7 +34,7 @@ def calculate_answers_statistics(*, modules, counts) -> list[dict]:
         questions = []
         for question in module.questions.all():
             options = list(question.options.all())
-            total = sum(counts.get(option, 0) for option in options)
+            total = sum(counts.get(option.id, 0) for option in options)
             scored = question.is_scored
 
             rows = []

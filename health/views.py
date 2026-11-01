@@ -56,7 +56,7 @@ def questionnaire_detail(request, version_id):
 @login_required
 def health_entry(request):
     """Открывает актуальную версию опубликованной анкеты."""
-    version_id = get_actual_questionnaire_version_id
+    version_id = get_actual_questionnaire_version_id()
 
     if version_id is None:
         raise Http404("Опубликованных анкет нет")
