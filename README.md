@@ -91,47 +91,59 @@ HRTech/
 │   ├── urls.py                    # подключение маршрутов приложений
 │   ├── asgi.py
 │   └── wsgi.py
-├── users/
-│   ├── models.py                  # Department и User
-│   ├── admin.py
-│   ├── urls.py                     # вход и выход
-│   ├── migrations/
-│   └── templates/users/
-├── onboarding/
-│   ├── models.py                  # обучение, прогресс и ответы
-│   ├── views.py                   # страницы сотрудника
-│   ├── hr_views.py                # страницы HR
-│   ├── permissions.py             # проверка доступа
-│   ├── services/                  # бизнес-логика
-│   ├── management/commands/       # настройка ролей
-│   ├── tests/                     # тесты моделей и сервисов
-│   ├── tests_answers.py
-│   ├── tests_splash.py
-│   ├── templates/
-│   └── static/onboarding/         # CSS, JavaScript, изображения
-├── journey/
-│   ├── models.py                  # шаги, прогресс и вопросы наставнику
-│   ├── views.py
-│   ├── urls.py
-│   ├── tests.py
-│   ├── management/commands/       # заполнение шагов маршрута
-│   └── templates/journey/
-├── health/
-│   ├── models.py                  # анкеты, версии, отправки и ответы
-│   ├── views.py
-│   ├── urls.py
-│   ├── froms.py                   # форма фильтрации отчёта
-│   ├── decorators.py
-│   ├── definitions/              # определения анкет
-│   ├── services/                  # синхронизация, ответы и отчёты
-│   ├── management/commands/
-│   ├── tests.py
-│   ├── templates/health/
-│   └── static/health/
-├── fixtures/
-│   └── learning_content.json      # учебный контент для загрузки
 ├── exports/
 │   └── learning_content.json      # выгруженный учебный контент
+├── fixtures/
+│   └── learning_content.json      # учебный контент для загрузки
+├── health/
+│   ├── definitions/              # определения анкет
+│   ├── management/commands/
+│   ├── migrations/
+│   ├── services/                  # синхронизация, ответы и отчёты
+│   ├── static/health/
+│   ├── templates/health/
+│   ├── admin.py
+│   ├── apps.py
+│   ├── decorators.py
+│   ├── froms.py                   # форма фильтрации отчёта
+│   ├── models.py                  # анкеты, версии, отправки и ответы
+│   ├── tests.py
+│   ├── urls.py
+│   └── views.py
+├── journey/
+│   ├── management/commands/       # заполнение шагов маршрута
+│   ├── migrations/
+│   ├── services/
+│   ├── templates/journey/
+│   ├── tests/
+│   ├── admin.py
+│   ├── apps.py
+│   ├── models.py                  # шаги, прогресс и вопросы наставнику
+│   ├── urls.py
+│   └── views.py
+├── onboarding/
+│   ├── management/commands/       # настройка ролей
+│   ├── migrations/
+│   ├── services/
+│   ├── static/                    # CSS, JavaScript, изображения
+│   ├── templates/onboarding/
+│   ├── templatetags/
+│   ├── tests/
+│   ├── admin.py
+│   ├── apps.py
+│   ├── hr_views.py                # страницы HR 
+│   ├── models.py                  # обучение, прогресс и ответы
+│   ├── permissions.py             # проверка доступа
+│   ├── urls.py
+│   └── views.py                   # страницы сотрудника
+├── users/
+│   ├── migrations/
+│   ├── templates/user/
+│   ├── admin.py
+│   ├── apps.py
+│   ├── models.py                  # Department и User
+│   ├── urls.py                     # вход и выход
+│   └── views.py
 ├── manage.py
 ├── build.sh                       # установка зависимостей и сбор статики
 ├── main.py                        # вспомогательный пример Python
