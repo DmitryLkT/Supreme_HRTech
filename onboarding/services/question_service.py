@@ -1,3 +1,4 @@
+from django.utils import timezone
 from django.db import transaction
 from django.db.models import F
 
@@ -23,7 +24,7 @@ def check_answer(*, question, selected_option):
     """Проверяет ответ и формирует результат"""
     scored = question.is_scored
     is_correct = selected_option.is_correct if scored else None
-    correct_option = _get_correct_option(question=question, scored=scored)
+    correct_option = _get_correct_option(question)
     message = _build_answer_message(
         scored=scored, is_correct=is_correct, correct_option=correct_option,
     )
@@ -48,6 +49,7 @@ def save_answer_submission(*, user, question, selected_option, is_correct):
             AnswerSubmission.objects.filter(pk=submission.pk).update(
                 option=selected_option, is_correct=is_correct,
                 attempts=F("attempts") + 1,
+                updated_at=timezone.now(),
             )
 
 def _get_correct_option(question):
