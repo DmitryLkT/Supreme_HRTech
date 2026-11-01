@@ -47,49 +47,25 @@ def make_question(question_id, text, options, is_scored=True):
                         options=FakeRelatedManager(options))
 
 
-def make_module(module_id, title, questions, is_published):
+def make_module(module_id, title, questions, is_published=True):
     return FakeInstance(id=module_id, title=title,
                         questions=FakeRelatedManager(questions), is_published=is_published)
 
 class CalculateGeneralStatisticsTest(TestCase):
-    def test_empty_list_employees(self):
-        """Проверяет, что если список сотрудников пуст"""
+    def setUp(self):
+        self.module1 = Module.objects.create(title="test", description="test", is_published=True,)
+        self.module2 = Module.objects.create(title="test2", description="test2", is_published=True,)
+        self.module3 = Module.objects.create(title="test3", description="test3", is_published=True,)
 
-        employees = get_employees_queryset()
-        total_modules = get_number_published_modules()
+        self.department = Department.objects.create(name="test")
 
-        employee_context = calculate_general_statistics(
-            employees=employees,
-            total_modules=total_modules
-        )
-
-        self.assertEqual(employee_context['employees_count'], 0)
-        self.assertEqual(employee_context['finished_count'], 0)
-        self.assertEqual(employee_context['in_progress_count'], 0)
-        self.assertEqual(employee_context['not_started_count'], 0)
+        self.user1 = User.objects.create_user(username="testUser1", password="testPassword123", department=self.department)
+        self.user2 = User.objects.create_user(username="testUser2", password="testPassword321", department=self.department)
+        self.user3 = User.objects.create_user(username="testUser3", password="testPassword3211", department=self.department)
+        self.user4 = User.objects.create_user(username="testUser4", password="testPassword1243", department=self.department)
 
     def test_no_one_started_employees(self):
         """Проверяет данные, когда никто из сотрудников еще не начал модули"""
-        Module.objects.create(
-            title="test",
-            description="test",
-            is_published=True,
-        )
-
-        department = Department.objects.create(
-            name="test"
-        )
-
-        User.objects.create_user(
-            username="testUser1",
-            password="testPassword123",
-            department=department,
-        )
-        User.objects.create_user(
-            username="testUser2",
-            password="testPassword321",
-            department=department,
-        )
 
         employees = get_employees_queryset()
         total_modules = get_number_published_modules()
@@ -99,43 +75,29 @@ class CalculateGeneralStatisticsTest(TestCase):
             total_modules=total_modules
         )
 
-        self.assertEqual(employee_context['employees_count'], 2)
+        self.assertEqual(employee_context['employees_count'], 4)
         self.assertEqual(employee_context['finished_count'], 0)
         self.assertEqual(employee_context['in_progress_count'], 0)
-        self.assertEqual(employee_context['not_started_count'], 2)
+        self.assertEqual(employee_context['not_started_count'], 4)
 
     def test_everyone_has_finished(self):
         """Все сотрудники прошли все опубликованные модули"""
-        module1 = Module.objects.create(
-            title="test",
-            description="test",
-            is_published=True,
-        )
-        module2 = Module.objects.create(
-            title="test2",
-            description="test2",
-            is_published=True,
-        )
 
-        department = Department.objects.create(
-            name="test"
-        )
+        ModuleCompletion.objects.create(user=self.user1, module=self.module1, completed_at=timezone.now())
+        ModuleCompletion.objects.create(user=self.user1, module=self.module2, completed_at=timezone.now())
+        ModuleCompletion.objects.create(user=self.user1, module=self.module3, completed_at=timezone.now())
 
-        user1 = User.objects.create_user(
-            username="testUser1",
-            password="testPassword123",
-            department=department,
-        )
-        user2 = User.objects.create_user(
-            username="testUser2",
-            password="testPassword321",
-            department=department,
-        )
+        ModuleCompletion.objects.create(user=self.user2, module=self.module1, completed_at=timezone.now())
+        ModuleCompletion.objects.create(user=self.user2, module=self.module2, completed_at=timezone.now())
+        ModuleCompletion.objects.create(user=self.user2, module=self.module3, completed_at=timezone.now())
 
-        ModuleCompletion.objects.create(user=user1, module=module1, completed_at=timezone.now())
-        ModuleCompletion.objects.create(user=user1, module=module2, completed_at=timezone.now())
-        ModuleCompletion.objects.create(user=user2, module=module1, completed_at=timezone.now())
-        ModuleCompletion.objects.create(user=user2, module=module2, completed_at=timezone.now())
+        ModuleCompletion.objects.create(user=self.user3, module=self.module1, completed_at=timezone.now())
+        ModuleCompletion.objects.create(user=self.user3, module=self.module2, completed_at=timezone.now())
+        ModuleCompletion.objects.create(user=self.user3, module=self.module3, completed_at=timezone.now())
+
+        ModuleCompletion.objects.create(user=self.user4, module=self.module1, completed_at=timezone.now())
+        ModuleCompletion.objects.create(user=self.user4, module=self.module2, completed_at=timezone.now())
+        ModuleCompletion.objects.create(user=self.user4, module=self.module3, completed_at=timezone.now())
 
         employees = get_employees_queryset()
         total_modules = get_number_published_modules()
@@ -145,60 +107,18 @@ class CalculateGeneralStatisticsTest(TestCase):
             total_modules=total_modules
         )
 
-        self.assertEqual(employee_context['employees_count'], 2)
-        self.assertEqual(employee_context['finished_count'], 2)
+        self.assertEqual(employee_context['employees_count'], 4)
+        self.assertEqual(employee_context['finished_count'], 4)
         self.assertEqual(employee_context['in_progress_count'], 0)
         self.assertEqual(employee_context['not_started_count'], 0)
 
     def test_mixed_case(self):
         """В одной выборке сотрудники во всех трёх состояниях"""
-        module1 = Module.objects.create(
-            title="test",
-            description="test",
-            is_published=True,
-        )
-        module2 = Module.objects.create(
-            title="test2",
-            description="test2",
-            is_published=True,
-        )
 
-        department = Department.objects.create(
-            name="test"
-        )
+        ModuleCompletion.objects.create(user=self.user1, module=self.module1, completed_at=timezone.now())
+        ModuleCompletion.objects.create(user=self.user1, module=self.module2,completed_at=timezone.now())
 
-        user1 = User.objects.create_user(
-            username="testUser1",
-            password="testPassword123",
-            department=department,
-        )
-        user2 = User.objects.create_user(
-            username="testUser2",
-            password="testPassword321",
-            department=department,
-        )
-        User.objects.create_user(
-            username="testUser3",
-            password="testPassword3211",
-            department=department,
-        )
-
-        ModuleCompletion.objects.create(
-            user=user1,
-            module=module1,
-            completed_at=timezone.now()
-        )
-        ModuleCompletion.objects.create(
-            user=user1,
-            module=module2,
-            completed_at=timezone.now()
-        )
-
-        ModuleCompletion.objects.create(
-            user=user2,
-            module=module1,
-            completed_at=timezone.now()
-        )
+        ModuleCompletion.objects.create(user=self.user2, module=self.module1, completed_at=timezone.now())
 
         employees = get_employees_queryset()
         total_modules = get_number_published_modules()
@@ -208,60 +128,20 @@ class CalculateGeneralStatisticsTest(TestCase):
             total_modules=total_modules
         )
 
-        self.assertEqual(employee_context['employees_count'], 3)
-        self.assertEqual(employee_context['finished_count'], 1)
-        self.assertEqual(employee_context['in_progress_count'], 1)
-        self.assertEqual(employee_context['not_started_count'], 1)
+        self.assertEqual(employee_context['employees_count'], 4)
+        self.assertEqual(employee_context['finished_count'], 0)
+        self.assertEqual(employee_context['in_progress_count'], 2)
+        self.assertEqual(employee_context['not_started_count'], 2)
 
     def test_borders(self):
         """Сотрудники с 0, total-1 и total пройденными модулями попадают в свои категории"""
-        module1 = Module.objects.create(
-            title="test",
-            description="test",
-            is_published=True,
-        )
-        module2 = Module.objects.create(
-            title="test2",
-            description="test2",
-            is_published=True,
-        )
-        module3 = Module.objects.create(
-            title="test3",
-            description="test3",
-            is_published=True,
-        )
 
-        department = Department.objects.create(
-            name="test"
-        )
-
-        User.objects.create_user(
-            username="testUser1",
-            password="testPassword123",
-            department=department,
-        )
-        user2 = User.objects.create_user(
-            username="testUser2",
-            password="testPassword321",
-            department=department,
-        )
-        user3 = User.objects.create_user(
-            username="testUser3",
-            password="testPassword1243",
-            department=department,
-        )
-        user4 = User.objects.create_user(
-            username="testUser4",
-            password="testPassword3211",
-            department=department,
-        )
-
-        ModuleCompletion.objects.create(user=user2, module=module1, completed_at=timezone.now())
-        ModuleCompletion.objects.create(user=user3, module=module1, completed_at=timezone.now())
-        ModuleCompletion.objects.create(user=user3, module=module2, completed_at=timezone.now())
-        ModuleCompletion.objects.create(user=user4, module=module1, completed_at=timezone.now())
-        ModuleCompletion.objects.create(user=user4, module=module2, completed_at=timezone.now())
-        ModuleCompletion.objects.create(user=user4, module=module3, completed_at=timezone.now())
+        ModuleCompletion.objects.create(user=self.user2, module=self.module1, completed_at=timezone.now())
+        ModuleCompletion.objects.create(user=self.user3, module=self.module1, completed_at=timezone.now())
+        ModuleCompletion.objects.create(user=self.user3, module=self.module2, completed_at=timezone.now())
+        ModuleCompletion.objects.create(user=self.user4, module=self.module1, completed_at=timezone.now())
+        ModuleCompletion.objects.create(user=self.user4, module=self.module2, completed_at=timezone.now())
+        ModuleCompletion.objects.create(user=self.user4, module=self.module3, completed_at=timezone.now())
 
         employees = get_employees_queryset()
         total_modules = get_number_published_modules()
@@ -278,45 +158,14 @@ class CalculateGeneralStatisticsTest(TestCase):
 
     def test_sum_invariant(self):
         """finished + in_progress + not_started равно employees_count"""
-        module1 = Module.objects.create(
-            title="test",
-            description="test",
-            is_published=True,
-        )
-        module2 = Module.objects.create(
-            title="test2",
-            description="test2",
-            is_published=True,
-        )
-
-        department = Department.objects.create(
-            name="test"
-        )
-
-        user1 = User.objects.create_user(
-            username="testUser1",
-            password="testPassword123",
-            department=department,
-        )
-        user2 = User.objects.create_user(
-            username="testUser2",
-            password="testPassword321",
-            department=department,
-        )
-        User.objects.create_user(
-            username="testUser3",
-            password="testPassword3211",
-            department=department,
-        )
-
-        ModuleCompletion.objects.create(user=user1, module=module1, completed_at=timezone.now())
-        ModuleCompletion.objects.create(user=user1, module=module2, completed_at=timezone.now())
-        ModuleCompletion.objects.create(user=user2, module=module1, completed_at=timezone.now())
+        ModuleCompletion.objects.create(user=self.user1, module=self.module1, completed_at=timezone.now())
+        ModuleCompletion.objects.create(user=self.user1, module=self.module2, completed_at=timezone.now())
+        ModuleCompletion.objects.create(user=self.user2, module=self.module1, completed_at=timezone.now())
 
         employees = get_employees_queryset()
         total_modules = get_number_published_modules()
 
-        self.assertEqual(total_modules, 2)
+        self.assertEqual(total_modules, 3)
 
         employee_context = calculate_general_statistics(
             employees=employees,
